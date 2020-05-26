@@ -1,15 +1,16 @@
 // ==UserScript==
 // @name B站视频下载
-// @namespace Violentmonkey Scripts
-// @author JaysonLong https://github.com/jaysonlong/webvideo-downloader
+// @namespace https://github.com/jaysonlong
+// @author JaysonLong https://github.com/jaysonlong
 // @version 1.0
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @require https://cdn.bootcdn.net/ajax/libs/jquery/1.7.2/jquery.min.js
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @run-at document-start
-// @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/B站视频下载.user.js
 // @grant none
+// @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/B站视频下载.user.js
+// @homepageURL https://github.com/jaysonlong/webvideo-downloader
 // ==/UserScript==
 
 var pad = '&nbsp;&nbsp;';

@@ -1,6 +1,6 @@
 # webvideo-downloader
 
-网站视频下载器，用于下载一些网站中可以在线播放的视频，当前支持Bilibili（单P/多P），爱奇艺，腾讯视频，芒果TV的视频下载。
+网站视频下载器，用于下载一些网站中可以在线播放的视频，当前支持bilibili（单P/多P），爱奇艺，腾讯视频，芒果TV的视频下载。
 
 > **What you can watch determined what you can download.**
 >
@@ -14,7 +14,7 @@
 
 1. Chrome浏览器安装 `ViolentMonkey` 插件或者其他浏览器类似插件，都一样
 
-2. 按需导入 `violentmonkey` 目录中的几个脚本。直接点击以下链接即可导入：
+2. 按需导入 `violentmonkey` 目录中的几个脚本。直接点击以下链接即可导入
 - [B站视频下载](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/B站视频下载.user.js) | [爱奇艺视频下载](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/爱奇艺视频下载.user.js) | [腾讯视频下载](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/腾讯视频下载.user.js) | [芒果TV视频下载](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/芒果TV视频下载.user.js)
 
 3. 打开相对应的视频网站，点击某一个视频

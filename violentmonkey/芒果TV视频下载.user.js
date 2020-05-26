@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name 芒果TV下载
-// @namespace Violentmonkey Scripts
-// @author JaysonLong https://github.com/jaysonlong/webvideo-downloader
+// @namespace https://github.com/jaysonlong
+// @author JaysonLong https://github.com/jaysonlong
 // @version 1.0
 // @match *://www.mgtv.com/b/*
 // @run-at document-start
-// @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/芒果TV视频下载.user.js
 // @grant none
+// @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/芒果TV视频下载.user.js
+// @homepageURL https://github.com/jaysonlong/webvideo-downloader
 // ==/UserScript==
 
 var pad = '&nbsp;&nbsp;';
