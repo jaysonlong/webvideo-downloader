@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name 腾讯视频下载
 // @namespace Violentmonkey Scripts
-// @author     JaysonLong https://github.com/jaysonlong
+// @author JaysonLong https://github.com/jaysonlong/webvideo-downloader
+// @version 1.0
 // @match *://v.qq.com/x/cover/*
 // @match *://v.qq.com/x/page/*
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @run-at document-start
+// @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/腾讯视频下载.user.js
 // @grant none
 // ==/UserScript==
 
