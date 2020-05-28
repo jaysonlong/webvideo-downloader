@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name 爱奇艺视频下载
 // @namespace https://github.com/jaysonlong
-// @author JaysonLong https://github.com/jaysonlong
+// @author Jayson Long https://github.com/jaysonlong
 // @version 1.0
 // @match *://www.iqiyi.com/*.html
 // @require https://cdn.bootcdn.net/ajax/libs/jquery/1.7.2/jquery.min.js
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @run-at document-start
 // @grant none
-// @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/爱奇艺视频下载.user.js
+// @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/src/iqiyi.user.js
 // @homepageURL https://github.com/jaysonlong/webvideo-downloader
 // ==/UserScript==
 

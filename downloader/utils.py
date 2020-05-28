@@ -53,8 +53,8 @@ def getText(url, extraHeaders = {}):
 
 def parseUrl(url):
     path, suffix = url.rsplit('/', 1)
-    fileName = suffix.split('?')[0]
-    return path + '/', fileName
+    suffix = suffix.split('?')[0]
+    return path + '/', suffix
 
 def toMB(size):
     return '%.1f' % (size / 1024 / 1024)

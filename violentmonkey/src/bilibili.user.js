@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name B站视频下载
 // @namespace https://github.com/jaysonlong
-// @author JaysonLong https://github.com/jaysonlong
+// @author Jayson Long https://github.com/jaysonlong
 // @version 1.0
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
@@ -9,7 +9,7 @@
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @run-at document-start
 // @grant none
-// @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/B站视频下载.user.js
+// @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/src/bilibili.user.js
 // @homepageURL https://github.com/jaysonlong/webvideo-downloader
 // ==/UserScript==
 
@@ -27,7 +27,7 @@ $(() => {
     playinfoSource = "embedded html";
     
     eval($('script:contains(__playinfo__)').text());
-    parseData(window.__playinfo__.data);
+    parseResult(window.__playinfo__.data);
   }
 });
 
@@ -42,15 +42,14 @@ ah.hook({
       playinfoSource = "xhr request";
       playinfoUrl = url.startsWith('http') ? url : window.location.protocol + url;
       
-      fetch(playinfoUrl, {credentials: 'include'}).then(response => response.json()).then(rs => {
-        parseData(rs.result || rs.data);
-      });
+      fetch(playinfoUrl, {credentials: 'include'}).then(response => response.json()).then(parseResult);
     }
   }
 });
 
 // 获取视频链接
-function parseData(data) {
+function parseResult(data) {
+  var data = rs.result || rs.data;
   console.log(data);
   
   if (data.dash) {

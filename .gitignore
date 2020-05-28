@@ -1,2 +1,3 @@
-temp
-videos
+/temp
+/videos
+__pycache__

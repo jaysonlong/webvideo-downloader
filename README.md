@@ -14,8 +14,8 @@
 
 1. Chrome浏览器安装 `ViolentMonkey` 插件或者其他浏览器类似插件，都一样
 
-2. 按需导入 `violentmonkey` 目录中的几个脚本。直接点击以下链接即可导入
-- [B站视频下载](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/B站视频下载.user.js) | [爱奇艺视频下载](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/爱奇艺视频下载.user.js) | [腾讯视频下载](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/腾讯视频下载.user.js) | [芒果TV视频下载](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/芒果TV视频下载.user.js)
+2. 导入 `violentmonkey` 目录中的 `WebVideoDownloader.user.js` 脚本。直接点击以下链接即可导入
+- [网站视频下载器](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js)
 
 3. 打开相对应的视频网站，点击某一个视频
 

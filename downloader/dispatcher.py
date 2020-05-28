@@ -23,8 +23,8 @@ def downloadM3u8(m3u8Url, fileName, headers={}):
     print('匹配到%d段视频，开始下载...' % len(urls))
 
     if len(urls) > 0 and not urls[0].startswith('http'):
-        path, holder = utils.parseUrl(m3u8Url)
-        urls = list(map(lambda ele: path + ele, urls))
+        path, suffix = utils.parseUrl(m3u8Url)
+        urls = list(map(lambda url: path + url, urls))
 
     suffix = '.ts'
     threadList, names = [], []
@@ -38,7 +38,7 @@ def downloadM3u8(m3u8Url, fileName, headers={}):
     fileName = os.path.join(config.videoFilePath, fileName + '.mp4')
     utils.mergePartialVideos(names, fileName)
 
-# flv/f4v视频分段下载并合并
+# flv/f4v或其他格式分段下载并合并
 def downloadFlv(urls, fileName, headers={}):
     print("-- dispatcher/downloadFlv")
     if isinstance(urls, str):
@@ -55,13 +55,13 @@ def downloadFlv(urls, fileName, headers={}):
         names.append(name)
 
         if isBilibili:
-            # 1080p视频的第一段，多线程下载容易失败（官方限制）
-            if i == 0 and urls[i].find('-80.flv') > 0:
-                # 每个线程下载500k，减轻失败代价
+            if i == 0 and (urls[i].find('-80.flv?') > 0 or urls[i].find('.mp4?') > 0):
+                # 第一段，多线程下载容易失败
+                # 每个线程下载1M，减轻失败代价
                 fileSize = utils.getFileSize(urls[i], headers)
-                threadCount = fileSize // (1024 * 500) + 1
+                threadCount = fileSize // (1024 * 1024) + 1
                 # 并行数量降低，降低失败率
-                utils.multiThreadDownload(urls[i], name, headers, threadCount, 8)
+                utils.multiThreadDownload(urls[i], name, headers, threadCount, 4)
             else:
                 utils.multiThreadDownload(urls[i], name, headers, 16)
         else:
