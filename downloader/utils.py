@@ -4,7 +4,7 @@ import requests
 import threading
 import time
 import sys
-import config
+from pathlib import Path
 
 dlInfo = {
     'totalSize': 0,
@@ -17,9 +17,8 @@ userAgent = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
 }
 
-# 控制进程并行数量
+# 多线程并行数量控制
 class MyThread(threading.Thread):
-    # 同步信号量
     threadSemaphore = threading.Semaphore(1)
 
     def __init__(self, target, args):
@@ -35,26 +34,30 @@ class MyThread(threading.Thread):
         with MyThread.threadSemaphore:
             self.target(*self.args)
 
-
-def getText(url, extraHeaders = {}):
-    if not url.startswith('http'):
-        with open(url) as f:
-            return f.read()
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
-    }
-    for key in extraHeaders:
-        headers[key] = extraHeaders[key]
-
-    resp = requests.request('GET', url, headers=headers)
-    content = resp.text
-    return content
-
 def parseUrl(url):
     path, suffix = url.rsplit('/', 1)
     suffix = suffix.split('?')[0]
     return path + '/', suffix
+
+def toAbsolutePath(path):
+    path = str(Path(path))
+    if path == str(Path(path).absolute()):
+        return path
+    else:
+        scriptPath = os.path.split(os.path.abspath(__file__))[0]
+        return os.path.join(scriptPath, str(Path(path)))
+
+def ensureDir(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+def removeFiles(fileNames):
+    if isinstance(fileNames, str):
+        fileNames = [fileNames]
+
+    for fileName in fileNames:
+        if os.path.exists(fileName):
+            os.remove(fileName)
 
 def toMB(size):
     return '%.1f' % (size / 1024 / 1024)
@@ -77,12 +80,29 @@ def mergeDict(dst, src):
         dst[key] = src[key]
     return dst
 
+def request(*args, **kargs):
+    response = requests.request(*args, **kargs)
+    if response.status_code > 299:
+        print(response.status_code, '错误')
+        exit()
+    return response
+
+def getText(url, extraHeaders = {}):
+    if not url.startswith('http'):
+        with open(url) as f:
+            return f.read()
+
+    headers = mergeDict(userAgent, extraHeaders)
+    response = request('GET', url, headers=headers)
+    return response.text
+
 def resetDownloadInfo(totalSize):
     dlInfo['totalSize'] = totalSize
     dlInfo['currSize'] = 0
     dlInfo['sizeHistory'] = [0 for i in range(5)]
     dlInfo['startTime'] = time.time()
 
+# 打印下载进度
 def updateProgress(percent = None, barLength = 50):
     if percent is None:
         if dlInfo['totalSize'] == 0:
@@ -109,29 +129,14 @@ def updateProgress(percent = None, barLength = 50):
     ))
     sys.stdout.flush()
 
-def getFileSize(url, extraHeaders = {}):
-    headers = mergeDict(userAgent, extraHeaders)
-
-    response = requests.request("GET", url, headers=headers, stream=True, timeout=10)
-    if response.status_code > 299:
-        print(response.status_code, '错误')
-        exit()
-
-    return int(response.headers['Content-Length'])
-
 def download(url, fileName, extraHeaders = {}):
     headers = mergeDict(userAgent, extraHeaders)
     
-    # 下载函数
     def startDownload():
-        response = requests.request("GET", url, headers=headers, stream=True, timeout=10)
-        if response.status_code > 299:
-            print(response.status_code, '错误')
-            exit()
+        response = request("GET", url, headers=headers, stream=True, timeout=10)
 
         resetDownloadInfo(int(response.headers['Content-Length']))
         print('正在下载', fileName)
-        print('文件大小:', formatSize(dlInfo['totalSize']))
 
         try:
             with open(fileName, 'wb') as fd:
@@ -153,7 +158,7 @@ def download(url, fileName, extraHeaders = {}):
         time.sleep(0.5)
         updateProgress()
 
-    print('\n完成', fileName)
+    print()
 
 def downloadAll(urls, fileNames, extraHeaders = {}, parallelCount = 2):
     headers = mergeDict(userAgent, extraHeaders)
@@ -166,10 +171,7 @@ def downloadAll(urls, fileNames, extraHeaders = {}, parallelCount = 2):
     def startDownload(i):
         nonlocal currCount
         try:
-            response = requests.request("GET", urls[i], headers=headers, stream=True, timeout=10)
-            if response.status_code > 299:
-                print(response.status_code, '错误')
-                exit()
+            response = request("GET", urls[i], headers=headers, stream=True, timeout=10)
 
             downloadedSize[i] = 0
             with open(fileNames[i], 'wb') as fd:
@@ -201,14 +203,11 @@ def downloadAll(urls, fileNames, extraHeaders = {}, parallelCount = 2):
             percent = currCount / totalCount
             updateProgress(percent)
 
-    print('\n完成')
+    print()
 
 def downloadRange(url, headers, downloadedData, downloadedSize, threadIndex):
     try:
-        response = requests.request("GET", url, headers=headers, stream=True, timeout=10)
-        if response.status_code > 299:
-            print(response.status_code, '错误')
-            exit()
+        response = request("GET", url, headers=headers, stream=True, timeout=10)
 
         bytesdata = b''
         downloadedSize[threadIndex] = 0
@@ -224,29 +223,24 @@ def downloadRange(url, headers, downloadedData, downloadedSize, threadIndex):
 
 def multiThreadDownload(url, fileName, extraHeaders = {}, threadCount = 16, parallelCount = None):
     headers = mergeDict(userAgent, extraHeaders)
+    response = request("HEAD", url, headers=headers)
 
-    response = requests.request("HEAD", url, headers=headers)
-    if response.status_code > 299:
-        print(response.status_code, '错误')
-        exit()
-    
     resetDownloadInfo(int(response.headers['Content-Length']))
     segmentSize = (dlInfo['totalSize'] + threadCount - 1) // threadCount
     downloadedData = [b'' for i in range(threadCount)]
     downloadedSize = [0 for i in range(threadCount)]
 
-    if parallelCount is None:
-        parallelCount = threadCount
+    parallelCount = parallelCount or threadCount
     MyThread.setParallelCount(parallelCount)
 
     print('正在下载', fileName)
-    print('文件大小: %s, 分%d线程, 并行%d线程下载' % (toMB(dlInfo['totalSize']), threadCount, parallelCount))
+    print('分%d线程, 并行%d线程下载' % (threadCount, parallelCount))
 
     threadList = []
     for i in range(threadCount):
-        end = (segmentSize * (i + 1) - 1)
+        start, end = segmentSize * i, segmentSize * (i + 1) - 1
         subHeaders = headers.copy()
-        subHeaders['Range'] = 'bytes=%d-%d' % (segmentSize * i, end)
+        subHeaders['Range'] = 'bytes=%d-%d' % (start, end)
         t = MyThread(target=downloadRange, args=(url, subHeaders, downloadedData, downloadedSize, i))
         t.setDaemon(True)
         t.start()
@@ -262,9 +256,10 @@ def multiThreadDownload(url, fileName, extraHeaders = {}, threadCount = 16, para
     with open(fileName, 'wb') as f:
         for data in downloadedData:
             f.write(data)
-    print('\n完成', fileName)
 
-def mergePartialVideos(subfiles, fileName):
+    print()
+
+def mergePartialVideos(subfiles, fileName, delSilent):
     # 这一行没毛病
     text = "file '" + ("'\nfile '".join(subfiles)) + "'" 
     with open('concat.txt', 'w') as f:
@@ -272,25 +267,14 @@ def mergePartialVideos(subfiles, fileName):
 
     cmd = 'ffmpeg -safe 0 -f concat -i concat.txt -c copy "%s"' % (fileName)
     os.system(cmd)
-    cmd = 'del concat.txt'
+    removeFiles('concat.txt')
+
+    delete = delSilent or input('是否删除临时文件(Y/n):').lower() == 'y'
+    delete and removeFiles(subfiles)
+
+def mergeAudio2Video(videoName, audioName, fileName, delSilent):
+    cmd = 'ffmpeg -i "%s" -i "%s"  -c copy "%s"' % (audioName, videoName, fileName)
     os.system(cmd)
 
-    delete = ''
-    if config.delSilent != True:
-        delete = input('是否删除临时文件(Y/n):')
-
-    if config.delSilent == True or delete != 'n' and delete != 'N':
-        for i in range((len(subfiles) - 1) // 10 + 1):
-            cmd = 'del "%s"' % ('" "'.join(subfiles[i*10:(i+1)*10]))
-            os.system(cmd)
-
-def mergeAudio2Video(videoName, audioName, fileName):
-    cmd = 'ffmpeg -i "%s" -i "%s"  -c copy "%s"' % (videoName, audioName, fileName)
-    os.system(cmd)
-
-    delete = ''
-    if config.delSilent != True:
-        delete = input('是否删除临时文件(Y/n):')
-    if config.delSilent == True or delete != 'n' and delete != 'N':
-        cmd = 'del "%s" "%s"' % (audioName, videoName)
-        os.system(cmd)
+    delete = delSilent or input('是否删除临时文件(Y/n):').lower() == 'y'
+    delete and removeFiles([audioName, videoName])

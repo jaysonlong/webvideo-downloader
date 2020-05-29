@@ -72,16 +72,18 @@ def getPartUrl(partUrl, partCid, basePlayInfoUrl, sessCookie):
 
     return combineVideoUrl
 
-def downloadRangeParts(linksurl, baseFileName, startP, endP):
+def downloadRangeParts(linksurl, baseFileName, pRange):
     if linksurl.find('|') != -1:
         baseUrl, basePlayInfoUrl, sessCookie = linksurl.split('|')
     else:
         baseUrl, basePlayInfoUrl, sessCookie = linksurl, '', ''
 
+    pRange = pRange.strip().split(' ')
+    startP, endP = pRange if len(pRange) > 1 else pRange * 2
     baseUrl, startP, endP = baseUrl.split('?')[0], int(startP), int(endP)
     allPartInfo = getAllPartInfo(baseUrl)
 
-    print('-- 准备下载第%d - %dP' % (startP, endP))
+    print('\n准备下载第%d-%dP\n' % (startP, endP))
 
     for p in range(startP, endP + 1):
         partInfo = allPartInfo[p-1]
@@ -94,12 +96,14 @@ def downloadRangeParts(linksurl, baseFileName, startP, endP):
 
 def main():
     while True:
-        linksurl = input('输入油猴多p链接: ')
-        baseFileName = input('输入文件名: ')
-        rangeP = input('输入首、尾P(空格分隔)或单P: ').strip().split(' ')
-        startP, endP = rangeP if len(rangeP) > 1 else rangeP * 2
+        linksurl = input('输入油猴多p链接: ').strip()
+        baseFileName = input('输入文件名: ').strip()
+        pRange = input('输入首、尾P(空格分隔)或单P: ').strip()
         
-        downloadRangeParts(linksurl, baseFileName, startP, endP)
+        try:
+            downloadRangeParts(linksurl, baseFileName, pRange)
+        except Exception as e:
+            print(e)
 
 if __name__ == '__main__':
     main()

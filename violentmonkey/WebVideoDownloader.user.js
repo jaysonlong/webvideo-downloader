@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.0
+// @version 1.1
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.iqiyi.com/*.html
@@ -21,12 +21,13 @@ var pad = '&nbsp;&nbsp;';
 
 var cbFn = {};
 var handled = false;
+var serverUrl = 'http://127.0.0.1:18888';
 var storage = {
   // bilibili
   playinfoSource: 0,
   playinfoUrl: 0,
 
-  // tencent
+  // 腾讯视频
   url: 0,
   method: 0,
   body: 0,
@@ -43,7 +44,7 @@ if (isBilibili) {
     if (!handled && $('html').html().includes('__playinfo__')) {
       handled = true;
       storage.playinfoSource = "embedded html";
-      
+
       eval($('script:contains(__playinfo__)').text());
       parseResult_bilibili(window.__playinfo__);
     }
@@ -57,8 +58,10 @@ if (isBilibili) {
         handled = true;
         storage.playinfoSource = "xhr request";
         storage.playinfoUrl = url.startsWith('http') ? url : window.location.protocol + url;
-        
-        fetch(storage.playinfoUrl, {credentials: 'include'}).then(response => response.json()).then(parseResult_bilibili);
+
+        fetch(storage.playinfoUrl, {
+          credentials: 'include'
+        }).then(response => response.json()).then(parseResult_bilibili);
       }
     }
   });
@@ -68,7 +71,7 @@ if (isBilibili) {
 } else if (isIqiyi) {
   // 方法1，ajax拦截
   ah.hook({
-    open: function(args,xhr){
+    open: function(args, xhr) {
       var url = args[1];
       if (url.indexOf('dash?') > 0) {
         parseUrl_iqiyi(url);
@@ -122,44 +125,67 @@ if (isBilibili) {
 function parseResult_bilibili(rs) {
   var data = rs.result || rs.data;
   console.log(data);
-  
+
   if (data.dash) {
-    var { duration, audio: audios, video: videos } = data.dash;
-    var sortBw = function (a, b) { return b.bandwidth - a.bandwidth}
+    var {
+      duration,
+      audio: audios,
+      video: videos
+    } = data.dash;
+    var sortBw = function(a, b) {
+      return b.id != a.id ? b.id - a.id : b.bandwidth - a.bandwidth;
+    }
     audios.sort(sortBw);
-    var { baseUrl: audioUrl, bandwidth: audioBw } = audios[0];
+    var {
+      baseUrl: audioUrl,
+      bandwidth: audioBw
+    } = audios[0];
 
     var html = '<b>单P下载</b><br><br>';
-    videos.sort(sortBw);
+    var defns = {}
+    videos = videos.sort(sortBw).filter(v => !defns[v.id] && (defns[v.id] = true));
     videos.forEach((video) => {
-      var { width, height, baseUrl: videoUrl, bandwidth: videoBw } = video;
+      var {
+        width,
+        height,
+        baseUrl: videoUrl,
+        bandwidth: videoBw
+      } = video;
       var url = audioUrl + '|' + videoUrl;
       var timelength = Math.floor(duration / 60);
-      html += `${ width + 'x' + height + pad + timelength + '分钟' + pad }<a href="${url}">右键复制链接地址</a><br/><br/>`;
+      var fileformat = parseFileExt(url);
+      html += `${width + 'x' + height + pad + fileformat + pad + timelength + '分钟' + pad + toAnchorTag(url)}<br/><br/>`;
     });
-    
+
     html += '<b>多P下载</b><br><br>';
-    html += `<a href="${window.location.href}">右键复制链接地址</a><br><br>`;
-    openDialog(`视频链接 m4s (playinfo source: ${storage.playinfoSource})`, html);
+    html += `${toAnchorTag(location.href, 'multi')}<br><br>`;
+    openDialog(`视频链接 (playinfo source: ${storage.playinfoSource})`, html);
   } else if (data.durl) {
     var tasks = [];
-    
+
     if (storage.playinfoUrl) {
       tasks = data.accept_quality.map(each => new Promise(resolve => {
         var url = storage.playinfoUrl.replace(/qn=\d+/, 'qn=' + each);
-        fetch(url, {credentials: 'include'}).then(resp => resp.json()).then(rs => {
+        fetch(url, {
+          credentials: 'include'
+        }).then(resp => resp.json()).then(rs => {
           resolve(rs.result || rs.data)
         })
       }));
     } else {
       tasks = [Promise.resolve(data)];
     }
-    
+
     Promise.all(tasks).then(playinfoList => {
       var html = '<b>单P下载</b><br><br>';
       playinfoList.forEach(each => {
-        var { timelength, format, durl } = each;
-        var size = 0, urls = [];
+        var {
+          timelength,
+          format: fileformat,
+          durl
+        } = each;
+        var size = 0,
+          urls = [];
         for (var each of durl) {
           size += each.size;
           urls.push(each.url);
@@ -168,9 +194,9 @@ function parseResult_bilibili(rs) {
         size = Math.floor(size / 1024 / 1024);
         timelength = Math.floor(timelength / 1000 / 60);
 
-        html += `${format + pad + timelength + '分钟' + pad + size + 'MB' + pad + '分' + urls.length + '段' + pad}<a href="${url}">右键复制链接地址</a><br><br>`;
+        html += `${fileformat + pad + timelength + '分钟' + pad + size + 'MB' + pad + '分' + urls.length + '段' + pad + toAnchorTag(url)}<br><br>`;
       });
-      
+
       html += '<b>多P下载</b><br><br>';
       if (storage.playinfoUrl) {
         var pageUrl = window.location.href;
@@ -182,12 +208,12 @@ function parseResult_bilibili(rs) {
         var url = `${pageUrl}|${playinfoBaseUrl}|${sessCookie}`;
         var tips = sessCookie ? '' : '未登录或cookie中的SESSDATA项的HttpOnly属性为true，只能获取低清晰度版本';
 
-        html += `${tips + pad}<a href="${url}">右键复制链接地址</a><br><br>`;
+        html += `${tips + pad + toAnchorTag(url, 'multi')}<br><br>`;
       } else {
-        html += `<a href="${window.location.href}">右键复制链接地址</a><br><br>`;
+        html += `${toAnchorTag(location.href, 'multi')}<br><br>`;
       }
-      
-      openDialog(`视频链接 flv (playinfo source: ${storage.playinfoSource})`, html); 
+
+      openDialog(`视频链接 (playinfo source: ${storage.playinfoSource})`, html);
     });
   }
 }
@@ -195,17 +221,25 @@ function parseResult_bilibili(rs) {
 
 // 爱奇艺: 获取m3u8链接
 function parseUrl_iqiyi(url) {
-  fetch(url, {credentials: 'include'}).then(response => response.json()).then(rs => {
+  fetch(url, {
+    credentials: 'include'
+  }).then(response => response.json()).then(rs => {
     console.log(rs);
-    
+
     var videos = rs.data.program.video.filter(each => each.m3u8 != undefined);
     if (videos.length) {
-      var {vsize:size, m3u8, ff:fileformat, scrsz:wh, vid} = videos[0];
+      var {
+        vsize: size,
+        m3u8,
+        ff: fileformat,
+        scrsz: wh,
+        vid
+      } = videos[0];
       var blob = new Blob([m3u8]);
       var blobUrl = URL.createObjectURL(blob);
       var size = Math.floor(size / 1024 / 1024);
-      var html = `${fileformat + pad + wh + pad + size + 'M' + pad}<a href="${url}">右键复制链接地址</a>` 
-        + `${pad + '或' + pad}<a download="${vid}.m3u8" href="${blobUrl}">点击下载m3u8文件</a><br>`;
+      // var downloadAnchor = toAnchorTag(url, vid + '.m3u8', '点击下载m3u8文件');
+      var html = `${fileformat + pad + wh + pad + size + 'M' + pad + toAnchorTag(url)}<br><br>`;
       openDialog('视频链接', html);
     }
   });
@@ -216,32 +250,41 @@ function parseUrl_iqiyi(url) {
 function parseResult_tencent(rs) {
   var data = typeof rs == "string" ? JSON.parse(rs) : rs;
   var vinfo = JSON.parse(data.vinfo);
-  
+
   console.log(vinfo);
-  
+
   var tasks = vinfo.fl.fi.map(each => new Promise(resolve => {
-    var {name:defn, cname:defdesc} = each;
+    var {
+      name: defn,
+      cname: defdesc
+    } = each;
     var body = storage.body.replace(/defn=[^&]*/, 'defn=' + defn);
     fetch(storage.url, {
-      body: body,
-      method: storage.method,
-    })
+        body: body,
+        method: storage.method,
+      })
       .then(resp => resp.json())
       .then(data => ({
-        defdesc, data
+        defdesc,
+        data
       }))
       .then(resolve);
   }));
-  
+
   Promise.all(tasks).then(rsList => {
     var html = '';
     rsList.forEach(each => {
       try {
-        var {url, width, height, size} = parseVideoInfo_tencent(each.data);
-        html += `${width + 'x' + height + pad + each.defdesc + pad + size + 'M' + pad}<a href="${url}">右键复制链接地址</a><br/><br/>`;
+        var {
+          url,
+          width,
+          height,
+          size
+        } = parseVideoInfo_tencent(each.data);
+        html += `${width + 'x' + height + pad + each.defdesc + pad + size + 'M' + pad + toAnchorTag(url)}<br/><br/>`;
       } catch (e) {}
     })
-    
+
     openDialog('视频链接', html);
   });
 }
@@ -252,11 +295,18 @@ function parseVideoInfo_tencent(data) {
   var vi = vinfo.vl.vi[0];
   var ui = vi.ul.ui[0];
   var url = ui.url;
-  var {vw:width, vh:height, fs:size} = vi;
+  var {
+    vw: width,
+    vh: height,
+    fs: size
+  } = vi;
   size = Math.floor(size / 1024 / 1024);
-  
+
   return {
-    url, width, height, size
+    url,
+    width,
+    height,
+    size
   }
 }
 
@@ -265,34 +315,54 @@ function parseResult_mgtv(rs) {
   var host = rs.data.stream_domain[0];
   var videoInfo = rs.data.stream.filter(each => each.url != '');
   var tasks = videoInfo.map((each, i) => new Promise(resolve => {
-    var {fileformat, name, url} = each;
+    var {
+      fileformat,
+      name,
+      url
+    } = each;
     var ele = document.createElement('script');
     var cb = 'jaysonCb' + i;
     url = host + each.url + '&callback=' + cb;
     ele.src = url;
     document.body.appendChild(ele);
-           
+
     window[cb] = function(rs) {
       var url = rs.info;
       fetch(url).then(resp => resp.text()).then(rs => {
-        var {width, height, size} = parseVideoInfo_mgtv(rs);
+        var {
+          width,
+          height,
+          size
+        } = parseVideoInfo_mgtv(rs);
         resolve({
-          width, height, size, fileformat, name, url
+          width,
+          height,
+          size,
+          fileformat,
+          name,
+          url
         });
       });
-      
+
       document.body.removeChild(ele);
       window[cb] = undefined;
     };
   }));
-  
+
   Promise.all(tasks).then(rsList => {
     var html = '';
     rsList.forEach(rs => {
-      var {width, height, size, fileformat, name, url} = rs;
-      html += `${width + 'x' + height + pad + fileformat + pad + name + pad + size + 'M' + pad}<a href="${url}">右键复制链接地址</a><br><br>`;
+      var {
+        width,
+        height,
+        size,
+        fileformat,
+        name,
+        url
+      } = rs;
+      html += `${width + 'x' + height + pad + fileformat + pad + name + pad + size + 'M' + pad + toAnchorTag(url)}<br><br>`;
     })
-    
+
     openDialog('视频链接', html);
   })
 }
@@ -306,16 +376,17 @@ function parseVideoInfo_mgtv(rs) {
     var eachSize = parseInt(each.split(':')[1]);
     size += eachSize;
   });
-  size = Math.floor(size/1024/1024);
-  
+  size = Math.floor(size / 1024 / 1024);
+
   return {
-    width, height, size
+    width,
+    height,
+    size
   }
 }
 
 // jsonp拦截
 function jsonpIntercept(urlKey, cbFunc, cbKey = 'callback') {
-  cbKey = cbKey + '=';
   document._createElement = document.createElement;
   document.createElement = function(type) {
     var ele = document._createElement(type);
@@ -328,18 +399,18 @@ function jsonpIntercept(urlKey, cbFunc, cbKey = 'callback') {
           if (!cbFn[cbName]) {
             cbFn[cbName] = window[cbName];
             Object.defineProperty(window, cbName, {
-              get: ()=>{
+              get: () => {
                 if (!cbFn[cbName]) {
                   return undefined;
                 }
                 return (rs) => {
-                  try{
+                  try {
                     cbFunc(rs);
-                  } catch(e) {}
+                  } catch (e) {}
                   cbFn[cbName](rs);
                 };
               },
-              set: (fn)=>{
+              set: (fn) => {
                 cbFn[cbName] = fn;
               }
             });
@@ -358,24 +429,70 @@ function observeUrl(cbFunc) {
   window.history._replaceState = window.history.replaceState;
 
   window.history.pushState = function() {
-    cbFunc()
+    cbFunc();
     return window.history._pushState(...arguments);
   }
   window.history.replaceState = function() {
-    cbFunc()
+    cbFunc();
     return window.history._replaceState(...arguments);
+  }
+}
+
+function parseFileExt(url) {
+  return url.match(/[^/?]+\.([^/?]+)\?/)[1];
+}
+
+function toAnchorTag(url, type = 'single', text = '右键复制链接地址') {
+  if (type == 'single') {
+    return `<a class="remote" href="${url}">${text}</a>`;
+  } else if (type == 'multi') {
+    return `<a data-multi="multi" class="remote" href="${url}">${text}</a>`;
+  } else {
+    return `<a download="${type}" href="${url}">${text}</a>`;
   }
 }
 
 function openDialog(title, html) {
   var div = $(`<div style="">${title + pad}<button class="remove">关闭</button><br><br>${html}</div>`);
-  div[0].setAttribute('style', 'font-size:15px;position:absolute;width:60%;padding:25px;border:2px solid #03a9f4;'
-    + 'border-radius:10px;background:rgba(255,255,255,.9);top:7%;left:15%;z-index:10000;word-wrap:break-word;');
-  
+  div[0].setAttribute('style', 'font-size:15px;position:absolute;width:60%;padding:25px;border:2px solid #03a9f4;' +
+    'border-radius:10px;background:rgba(255,255,255,.9);top:7%;left:15%;z-index:10000;word-wrap:break-word;');
   $('body').append(div);
+
   div.find('a').css('color', '#0000EE');
+  div.find('a.remote').click(remoteCall);
   div.find('button.remove').css('marginLeft', '20px').click((e) => {
     div.remove();
     e.stopPropagation();
   });
 };
+
+async function remoteCall(e) {
+  e.preventDefault();
+
+  var rs = await fetch(serverUrl, {
+    method: 'POST',
+    body: 'ping'
+  }).then(resp => resp.text(), err => err);
+
+  if (rs != 'pong') {
+    alert('请先运行 "python daemon.py"');
+  } else {
+    var payload = {
+      linksurl: this.href,
+      fileName: prompt('输入文件名: ')
+    };
+    if (payload.fileName == null) {
+      return;
+    }
+
+    this.dataset.multi && (payload.pRange = prompt('输入首、尾P(空格分隔)或单P: '));
+    if (this.dataset.multi && payload.pRange == null) {
+      return;
+    }
+
+    fetch(serverUrl, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+}

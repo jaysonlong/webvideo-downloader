@@ -36,7 +36,8 @@ def downloadM3u8(m3u8Url, fileName, headers={}):
     utils.downloadAll(urls, names, headers, 2)
 
     fileName = os.path.join(config.videoFilePath, fileName + '.mp4')
-    utils.mergePartialVideos(names, fileName)
+    utils.mergePartialVideos(names, fileName, config.delSilent)
+    print('完成\n')
 
 # flv/f4v或其他格式分段下载并合并
 def downloadFlv(urls, fileName, headers={}):
@@ -68,7 +69,8 @@ def downloadFlv(urls, fileName, headers={}):
             utils.download(urls[i], name, headers)
 
     fileName = os.path.join(config.videoFilePath, fileName + suffix)
-    utils.mergePartialVideos(names, fileName)
+    utils.mergePartialVideos(names, fileName, config.delSilent)
+    print('完成\n')
 
 # bilibili专属: 下载m4s音视频并合并
 def downloadM4s(urls, fileName, headers={}):
@@ -82,15 +84,18 @@ def downloadM4s(urls, fileName, headers={}):
     videoName = os.path.join(config.tempFilePath, fileName + suffix + '.video')
     fileName = os.path.join(config.videoFilePath, fileName + '.mp4')
 
-    print('匹配到一段音频和一段视频，开始下载音频和视频...')
+    print('匹配到一段音频和一段视频，开始下载...')
 
     utils.download(audioUrl, audioName, headers)
     utils.download(videoUrl, videoName, headers)
-    utils.mergeAudio2Video(videoName, audioName, fileName)
-
+    utils.mergeAudio2Video(audioName, videoName, fileName, config.delSilent)
+    print('完成\n')
 
 
 def download(linksurl, fileName, headers={}):
+    if not linksurl or not fileName:
+        return
+
     fileName = re.sub(r'[/\:*?"<>|]', '_', fileName)
 
     global isBilibili, isIqiyi, isMgtv
