@@ -1,19 +1,24 @@
 # -*- coding:utf-8 -*-
-import sys
-import os
-import dispatcher
+import requests
+import re
+import json
+import traceback
+from dispatcher import TaskDispatcher
 
 
 def main():
+    taskDispatcher = TaskDispatcher()
+    
     while True:
-        linksurl = input('输入油猴链接或本地m3u8路径:').strip()
-        fileName = input('输入保存文件名:').strip()
-        print()
-
         try:
-            dispatcher.download(linksurl, fileName)
-        except Exception as e:
-            print(e)
+            linksurl = input('输入油猴链接或本地m3u8路径: ').strip()
+            fileName = input('输入文件名: ').strip()
+            isMultiPart = linksurl.find('www.bilibili.com') != -1
+            pRange = input('输入首、尾P(空格分隔)或单P: ').strip() if isMultiPart else None
+        except KeyboardInterrupt:
+            break
 
-if __name__ == "__main__":
+        taskDispatcher.dispatch(linksurl=linksurl, fileName=fileName, pRange=pRange)
+
+if __name__ == '__main__':
     main()

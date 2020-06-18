@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.1
+// @version 1.2
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.iqiyi.com/*.html
@@ -18,10 +18,10 @@
 // ==/UserScript==
 
 var pad = '&nbsp;&nbsp;';
-
+var serverUrl = 'ws://localhost:18888';
 var cbFn = {};
 var handled = false;
-var serverUrl = 'http://127.0.0.1:18888';
+
 var storage = {
   // bilibili
   playinfoSource: 0,
@@ -46,7 +46,7 @@ if (isBilibili) {
       storage.playinfoSource = "embedded html";
 
       eval($('script:contains(__playinfo__)').text());
-      parseResult_bilibili(window.__playinfo__);
+      bilibili_parseResult(window.__playinfo__);
     }
   });
 
@@ -61,7 +61,7 @@ if (isBilibili) {
 
         fetch(storage.playinfoUrl, {
           credentials: 'include'
-        }).then(response => response.json()).then(parseResult_bilibili);
+        }).then(response => response.json()).then(bilibili_parseResult);
       }
     }
   });
@@ -74,41 +74,37 @@ if (isBilibili) {
     open: function(args, xhr) {
       var url = args[1];
       if (url.indexOf('dash?') > 0) {
-        parseUrl_iqiyi(url);
+        iqiyi_parseUrl(url);
       }
     }
   });
 
   // 方法2，jsonp拦截
-  jsonpIntercept('/jp/dash?', parseUrl_iqiyi);
+  jsonpIntercept('/jp/dash?', iqiyi_parseUrl);
 
 } else if (isTencent) {
   // ajax拦截
   ah.hook({
-    // 绑定url供send回调获取
-    open: (args, xhr) => {
+    open: ([method, url], xhr) => {
       var [method, url] = args;
-      if (url.indexOf('qq.com/proxyhttp') > 0) {
-        xhr.method = method.toUpperCase();
-        xhr.url = url;
-      }
+      xhr.method = method;
+      xhr.url = url;
     },
-    // 绑定isVinfo供onreadystatechange回调获取
     send: (args, xhr) => {
       var body = args[0];
-      if (xhr.url && body.indexOf('vinfoparam') > 0) {
-        xhr.isVinfo = true;
-        Object.assign(storage, {
-          url: xhr.url,
-          method: xhr.method,
-          body: body,
-        });
+      if (xhr.url.indexOf('qq.com/proxyhttp') > 0 && body.indexOf('vinfoparam') > 0) {
+        xhr.body = body;
       }
     },
     onreadystatechange: function(xhr) {
-      if (!handled && xhr.isVinfo && xhr.readyState == 4) {
+      if (!handled && xhr.body && xhr.readyState == 4) {
         handled = true;
-        parseResult_tencent(xhr.responseText);
+        Object.assign(storage, {
+          url: xhr.url,
+          method: xhr.method,
+          body: xhr.body,
+        });
+        tencent_parseResult(xhr.responseText);
       }
     },
   });
@@ -117,34 +113,55 @@ if (isBilibili) {
 
 } else if (isMGTV) {
   // jsonp拦截
-  jsonpIntercept('getSource?', parseResult_mgtv);
+  jsonpIntercept('getSource?', mgtv_parseResult);
 }
 
 
 // bilibili: 获取视频链接
-function parseResult_bilibili(rs) {
+async function bilibili_parseResult(rs) {
   var data = rs.result || rs.data;
   console.log(data);
 
+  var htmls = [];
+  htmls.push('<b>单P下载</b>');
+  var singlePartHtmls = await bilibili_fetchHtmls(data);
+  htmls = htmls.concat(singlePartHtmls)
+
+  htmls.push('<b>多P下载</b>');
+  if (storage.playinfoUrl) {
+    var pageUrl = window.location.href;
+    pageUrl = pageUrl.indexOf('?') != -1 ? pageUrl : pageUrl + '?';
+    var playinfoBaseUrl = storage.playinfoUrl.replace(/&cid=[^&]+?$|cid=.+?&/, '');
+    var sessCookie = document.cookie.split('; ').filter(each => each.startsWith('SESSDATA='));
+    sessCookie = sessCookie.length ? sessCookie[0] : '';
+
+    var url = `${pageUrl}|${playinfoBaseUrl}|${sessCookie}`;
+    var tips = sessCookie ? '' : '未登录或cookie中的SESSDATA项的HttpOnly属性为true，只能获取低清晰度版本';
+    htmls.push(tips + pad + toAnchor(url, 'multi'));
+  } else {
+    htmls.push(toAnchor(location.href, 'multi'));
+  }
+
+  htmls = htmls.join('<br><br>')
+  openDialog(`视频链接 (playinfo source: ${storage.playinfoSource})`, htmls);
+}
+
+
+async function bilibili_fetchHtmls(data) {
+  var htmls = [];
+
   if (data.dash) {
-    var {
-      duration,
-      audio: audios,
-      video: videos
-    } = data.dash;
     var sortBw = function(a, b) {
       return b.id != a.id ? b.id - a.id : b.bandwidth - a.bandwidth;
     }
-    audios.sort(sortBw);
-    var {
-      baseUrl: audioUrl,
-      bandwidth: audioBw
-    } = audios[0];
+    var { baseUrl: audioUrl } = data.dash.audio.sort(sortBw)[0];
+    var defns = [];
+    data.dash.video.sort(sortBw).forEach(video => {
+      if (defns.includes(video.id)) {
+        return;
+      }
+      defns.push(video.id);
 
-    var html = '<b>单P下载</b><br><br>';
-    var defns = {}
-    videos = videos.sort(sortBw).filter(v => !defns[v.id] && (defns[v.id] = true));
-    videos.forEach((video) => {
       var {
         width,
         height,
@@ -152,23 +169,17 @@ function parseResult_bilibili(rs) {
         bandwidth: videoBw
       } = video;
       var url = audioUrl + '|' + videoUrl;
-      var timelength = Math.floor(duration / 60);
+      var timelength = Math.floor(data.dash.duration / 60);
       var fileformat = parseFileExt(url);
-      html += `${width + 'x' + height + pad + fileformat + pad + timelength + '分钟' + pad + toAnchorTag(url)}<br/><br/>`;
+      var html = `${width}x${height}` + pad + fileformat + pad + `${timelength}分钟` + pad + toAnchor(url);
+      htmls.push(html);
     });
-
-    html += '<b>多P下载</b><br><br>';
-    html += `${toAnchorTag(location.href, 'multi')}<br><br>`;
-    openDialog(`视频链接 (playinfo source: ${storage.playinfoSource})`, html);
   } else if (data.durl) {
-    var tasks = [];
-
+    var tasks;
     if (storage.playinfoUrl) {
       tasks = data.accept_quality.map(each => new Promise(resolve => {
         var url = storage.playinfoUrl.replace(/qn=\d+/, 'qn=' + each);
-        fetch(url, {
-          credentials: 'include'
-        }).then(resp => resp.json()).then(rs => {
+        fetch(url, { credentials: 'include' }).then(resp => resp.json()).then(rs => {
           resolve(rs.result || rs.data)
         })
       }));
@@ -176,51 +187,30 @@ function parseResult_bilibili(rs) {
       tasks = [Promise.resolve(data)];
     }
 
-    Promise.all(tasks).then(playinfoList => {
-      var html = '<b>单P下载</b><br><br>';
-      playinfoList.forEach(each => {
-        var {
-          timelength,
-          format: fileformat,
-          durl
-        } = each;
-        var size = 0,
-          urls = [];
-        for (var each of durl) {
-          size += each.size;
-          urls.push(each.url);
-        }
-        var url = urls.join('|');
-        size = Math.floor(size / 1024 / 1024);
-        timelength = Math.floor(timelength / 1000 / 60);
-
-        html += `${fileformat + pad + timelength + '分钟' + pad + size + 'MB' + pad + '分' + urls.length + '段' + pad + toAnchorTag(url)}<br><br>`;
-      });
-
-      html += '<b>多P下载</b><br><br>';
-      if (storage.playinfoUrl) {
-        var pageUrl = window.location.href;
-        pageUrl = pageUrl.indexOf('?') != -1 ? pageUrl : pageUrl + '?';
-        var playinfoBaseUrl = storage.playinfoUrl.replace(/&cid=[^&]+?$|cid=.+?&/, '');
-        var sessCookie = document.cookie.split('; ').filter(each => each.startsWith('SESSDATA='));
-        sessCookie = sessCookie.length ? sessCookie[0] : '';
-
-        var url = `${pageUrl}|${playinfoBaseUrl}|${sessCookie}`;
-        var tips = sessCookie ? '' : '未登录或cookie中的SESSDATA项的HttpOnly属性为true，只能获取低清晰度版本';
-
-        html += `${tips + pad + toAnchorTag(url, 'multi')}<br><br>`;
-      } else {
-        html += `${toAnchorTag(location.href, 'multi')}<br><br>`;
+    var playinfoList = await tasks;
+    htmls = playinfoList.map(playinfo => {
+      var {
+        timelength,
+        format: fileformat,
+        durl
+      } = playinfo;
+      var size = 0, urls = [], url;
+      for (var each of durl) {
+        size += each.size;
+        urls.push(each.url);
       }
-
-      openDialog(`视频链接 (playinfo source: ${storage.playinfoSource})`, html);
+      url = urls.join('|');
+      size = Math.floor(size / 1024 / 1024);
+      timelength = Math.floor(timelength / 1000 / 60);
+      return fileformat + pad + `${timelength}分钟` + pad + `${size}MB` + pad + `分${urls.length}段` + pad + toAnchor(url);
     });
   }
+  return htmls;
 }
 
 
 // 爱奇艺: 获取m3u8链接
-function parseUrl_iqiyi(url) {
+function iqiyi_parseUrl(url) {
   fetch(url, {
     credentials: 'include'
   }).then(response => response.json()).then(rs => {
@@ -235,11 +225,12 @@ function parseUrl_iqiyi(url) {
         scrsz: wh,
         vid
       } = videos[0];
-      var blob = new Blob([m3u8]);
-      var blobUrl = URL.createObjectURL(blob);
       var size = Math.floor(size / 1024 / 1024);
-      // var downloadAnchor = toAnchorTag(url, vid + '.m3u8', '点击下载m3u8文件');
-      var html = `${fileformat + pad + wh + pad + size + 'M' + pad + toAnchorTag(url)}<br><br>`;
+      var downloadAnchor = '';
+      // var blob = new Blob([m3u8]);
+      // var blobUrl = URL.createObjectURL(blob);
+      // downloadAnchor = toAnchor(blobUrl, vid + '.m3u8', '点击下载视频信息');
+      var html = `${fileformat + pad + wh + pad + size + 'M' + pad + toAnchor(url) + pad + downloadAnchor}<br><br>`;
       openDialog('视频链接', html);
     }
   });
@@ -247,7 +238,7 @@ function parseUrl_iqiyi(url) {
 
 
 // 腾讯视频: 获取视频链接
-function parseResult_tencent(rs) {
+function tencent_parseResult(rs) {
   var data = typeof rs == "string" ? JSON.parse(rs) : rs;
   var vinfo = JSON.parse(data.vinfo);
 
@@ -280,8 +271,8 @@ function parseResult_tencent(rs) {
           width,
           height,
           size
-        } = parseVideoInfo_tencent(each.data);
-        html += `${width + 'x' + height + pad + each.defdesc + pad + size + 'M' + pad + toAnchorTag(url)}<br/><br/>`;
+        } = tencent_parseVideoInfo(each.data);
+        html += `${width + 'x' + height + pad + each.defdesc + pad + size + 'M' + pad + toAnchor(url)}<br/><br/>`;
       } catch (e) {}
     })
 
@@ -290,7 +281,7 @@ function parseResult_tencent(rs) {
 }
 
 // 腾讯视频: 解析视频信息对象
-function parseVideoInfo_tencent(data) {
+function tencent_parseVideoInfo(data) {
   var vinfo = JSON.parse(data.vinfo);
   var vi = vinfo.vl.vi[0];
   var ui = vi.ul.ui[0];
@@ -311,7 +302,7 @@ function parseVideoInfo_tencent(data) {
 }
 
 // 芒果TV: 获取视频链接
-function parseResult_mgtv(rs) {
+function mgtv_parseResult(rs) {
   var host = rs.data.stream_domain[0];
   var videoInfo = rs.data.stream.filter(each => each.url != '');
   var tasks = videoInfo.map((each, i) => new Promise(resolve => {
@@ -360,7 +351,7 @@ function parseResult_mgtv(rs) {
         name,
         url
       } = rs;
-      html += `${width + 'x' + height + pad + fileformat + pad + name + pad + size + 'M' + pad + toAnchorTag(url)}<br><br>`;
+      html += `${width + 'x' + height + pad + fileformat + pad + name + pad + size + 'M' + pad + toAnchor(url)}<br><br>`;
     })
 
     openDialog('视频链接', html);
@@ -442,7 +433,7 @@ function parseFileExt(url) {
   return url.match(/[^/?]+\.([^/?]+)\?/)[1];
 }
 
-function toAnchorTag(url, type = 'single', text = '右键复制链接地址') {
+function toAnchor(url, type = 'single', text = '点击下载或复制链接') {
   if (type == 'single') {
     return `<a class="remote" href="${url}">${text}</a>`;
   } else if (type == 'multi') {
@@ -454,8 +445,8 @@ function toAnchorTag(url, type = 'single', text = '右键复制链接地址') {
 
 function openDialog(title, html) {
   var div = $(`<div style="">${title + pad}<button class="remove">关闭</button><br><br>${html}</div>`);
-  div[0].setAttribute('style', 'font-size:15px;position:absolute;width:60%;padding:25px;border:2px solid #03a9f4;' +
-    'border-radius:10px;background:rgba(255,255,255,.9);top:7%;left:15%;z-index:10000;word-wrap:break-word;');
+  div[0].setAttribute('style', 'font-size:15px;position:absolute;width:50%;padding:25px;border:2px solid #03a9f4;' +
+    'border-radius:10px;background:rgba(255,255,255,.9);top:100px;left:20%;z-index:10000;word-wrap:break-word;');
   $('body').append(div);
 
   div.find('a').css('color', '#0000EE');
@@ -468,31 +459,26 @@ function openDialog(title, html) {
 
 async function remoteCall(e) {
   e.preventDefault();
+  var ws = new WebSocket(serverUrl);
+  var dom = this;
 
-  var rs = await fetch(serverUrl, {
-    method: 'POST',
-    body: 'ping'
-  }).then(resp => resp.text(), err => err);
-
-  if (rs != 'pong') {
+  ws.onerror = function() {
     alert('请先运行 "python daemon.py"');
-  } else {
+  };
+  ws.onopen = function() {
     var payload = {
-      linksurl: this.href,
-      fileName: prompt('输入文件名: ')
+      fileName: prompt('输入文件名: ', document.title)
     };
     if (payload.fileName == null) {
       return;
     }
 
-    this.dataset.multi && (payload.pRange = prompt('输入首、尾P(空格分隔)或单P: '));
-    if (this.dataset.multi && payload.pRange == null) {
+    payload.linksurl = dom.href;
+    payload.type = 'link';
+    if (dom.dataset.multi && !(payload.pRange = prompt('输入首、尾P(空格分隔)或单P: '))) {
       return;
     }
-
-    fetch(serverUrl, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-  }
+    ws.send(JSON.stringify(payload));
+    ws.close();
+  };
 }

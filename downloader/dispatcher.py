@@ -4,115 +4,146 @@ import json
 import os
 import threading
 import time
+import traceback
 import config
-import utils
-
-# 通用m3u8下载: 下载所有ts分段并合并
-def downloadM3u8(m3u8Url, fileName, headers={}):
-    print("-- dispatcher/downloadM3u8")
-
-    if isIqiyi:
-        data = json.loads(utils.getText(m3u8Url, headers))
-        videos = data['data']['program']['video']
-        videos = list(filter(lambda each: 'm3u8' in each and each['m3u8'] != '', videos))
-        content = videos[0]['m3u8']
-    else:
-        content = utils.getText(m3u8Url, headers)
-
-    urls = re.findall(r'\S+\.ts\S+', content)
-    print('匹配到%d段视频，开始下载...' % len(urls))
-
-    if len(urls) > 0 and not urls[0].startswith('http'):
-        path, suffix = utils.parseUrl(m3u8Url)
-        urls = list(map(lambda url: path + url, urls))
-
-    suffix = '.ts'
-    threadList, names = [], []
-    for i in range(len(urls)):
-        name = '%s_第%d段%s' % (fileName, i+1, suffix)
-        name = os.path.join(config.tempFilePath, name)
-        names.append(name)
-
-    utils.downloadAll(urls, names, headers, 2)
-
-    fileName = os.path.join(config.videoFilePath, fileName + '.mp4')
-    utils.mergePartialVideos(names, fileName, config.delSilent)
-    print('完成\n')
-
-# flv/f4v或其他格式分段下载并合并
-def downloadFlv(urls, fileName, headers={}):
-    print("-- dispatcher/downloadFlv")
-    if isinstance(urls, str):
-        urls = urls.split('|')
-    _, suffix = utils.parseUrl(urls[0])
-    suffix = '.' + suffix.rsplit('.', 1)[-1]
-
-    print('匹配到' + str(len(urls)) + '段视频，开始下载...')
-
-    names = []
-    for i in range(len(urls)):
-        name = '%s_第%d段%s' % (fileName, i+1, suffix)
-        name = os.path.join(config.tempFilePath, name)
-        names.append(name)
-
-        if isBilibili:
-            if i == 0 and (urls[i].find('-80.flv?') > 0 or urls[i].find('.mp4?') > 0):
-                # 第一段，多线程下载容易失败
-                # 每个线程下载1M，减轻失败代价
-                fileSize = utils.getFileSize(urls[i], headers)
-                threadCount = fileSize // (1024 * 1024) + 1
-                # 并行数量降低，降低失败率
-                utils.multiThreadDownload(urls[i], name, headers, threadCount, 4)
-            else:
-                utils.multiThreadDownload(urls[i], name, headers, 16)
-        else:
-            utils.download(urls[i], name, headers)
-
-    fileName = os.path.join(config.videoFilePath, fileName + suffix)
-    utils.mergePartialVideos(names, fileName, config.delSilent)
-    print('完成\n')
-
-# bilibili专属: 下载m4s音视频并合并
-def downloadM4s(urls, fileName, headers={}):
-    print("-- dispatcher/downloadM4s")
-
-    audioUrl, videoUrl = urls.split('|')
-    _, suffix = utils.parseUrl(videoUrl)
-    suffix = '.' + suffix.rsplit('.', 1)[-1]
-
-    audioName = os.path.join(config.tempFilePath, fileName + suffix + '.audio')
-    videoName = os.path.join(config.tempFilePath, fileName + suffix + '.video')
-    fileName = os.path.join(config.videoFilePath, fileName + '.mp4')
-
-    print('匹配到一段音频和一段视频，开始下载...')
-
-    utils.download(audioUrl, audioName, headers)
-    utils.download(videoUrl, videoName, headers)
-    utils.mergeAudio2Video(audioName, videoName, fileName, config.delSilent)
-    print('完成\n')
+import api
+import tools
+from tools import WebDownloader
 
 
-def download(linksurl, fileName, headers={}):
-    if not linksurl or not fileName:
-        return
+class TaskDispatcher:
+    
+    def __init__(self):
+        self.saveTempFile = config.saveTempFile
+        self.hlsThreadCnt = config.hlsThreadCnt
+        self.fragThreadCnt = config.fragThreadCnt
+        self.fragmentCnt = config.fragmentCnt
+        self.tempFilePath = tools.toAbsolutePath(config.tempFilePath, __file__)
+        self.videoFilePath = tools.toAbsolutePath(config.videoFilePath, __file__)
 
-    fileName = re.sub(r'[/\:*?"<>|]', '_', fileName)
+        self.downloader = WebDownloader(self.saveTempFile)
+        self.task = None
 
-    global isBilibili, isIqiyi, isMgtv
-    isBilibili = linksurl.find('acgvideo.com') > 0 or linksurl.find('bili') > 0
-    isIqiyi = linksurl.find('iqiyi.com') > 0
-    isMgtv = linksurl.find('mgtv.com') > 0
+        tools.mkdirIfNotExists(self.tempFilePath)
+        tools.mkdirIfNotExists(self.videoFilePath)
 
-    if isBilibili:
-        headers['referer'] = 'https://www.bilibili.com/'
-    elif isMgtv:
-        headers['referer'] = 'https://www.mgtv.com/'
 
-    if linksurl.find('.m3u8') > 0 or linksurl.find('dash?') > 0:
-        downloadM3u8(linksurl, fileName, headers)
-    elif linksurl.find('m4s') > 0:
-        downloadM4s(linksurl, fileName, headers)
-    elif linksurl.find('.flv') > 0 or linksurl.find('.f4v') > 0:
-        downloadFlv(linksurl, fileName, headers)
-    else:
-        downloadFlv(linksurl, fileName, headers)
+
+    # hls: 下载所有ts分片并合并
+    def _downloadHls(self, urls, fileName, headers = {}):
+        print("-- dispatcher/downloadHls")
+        print('匹配到%d段视频，开始下载' % len(urls))
+
+        tempFileBase = os.path.join(self.tempFilePath, fileName)
+        fileNames = tools.generateFileNames(urls, tempFileBase)
+        fileName = os.path.join(self.videoFilePath, fileName + '.mp4')
+
+        self.downloader.downloadAll(urls, fileNames, headers, self.hlsThreadCnt)
+        tools.mergePartialVideos(fileNames, fileName)
+        self.saveTempFile or tools.removeFiles(fileNames)
+        print('完成\n')
+
+    # dash: 下载音频和视频并合并
+    def _downloadDash(self, audioUrls, videoUrls, fileName, headers = {}):
+        print("-- dispatcher/downloadDash")
+        print('匹配到%d段音频和%d段视频，开始下载' % (len(audioUrls), len(videoUrls)))
+
+        tempAudioBase = os.path.join(self.tempFilePath, fileName + '.audio')
+        tempVideoBase = os.path.join(self.tempFilePath, fileName + '.video')
+        audioNames = tools.generateFileNames(audioUrls, tempAudioBase)
+        videoNames = tools.generateFileNames(videoUrls, tempVideoBase)
+        fileName = os.path.join(self.videoFilePath, fileName + '.mp4')
+
+        self.downloader.multiThreadDownloadAll(audioUrls, audioNames, headers, \
+            self.fragThreadCnt, self.fragmentCnt)
+        self.downloader.multiThreadDownloadAll(videoUrls, videoNames, headers, \
+            self.fragThreadCnt, self.fragmentCnt)
+        tools.mergeAudio2Video(audioNames, videoNames, fileName)
+        self.saveTempFile or tools.removeFiles(audioNames + videoNames)
+        print('完成\n')
+
+    # 普通分段视频: 下载并合并
+    def _downloadPartialVideos(self, urls, fileName, headers = {}):
+        print("-- dispatcher/downloadPartialVideos")
+        print('匹配到%d段视频，开始下载' % len(urls))
+
+        tempFileBase = os.path.join(self.tempFilePath, fileName)
+        fileNames = tools.generateFileNames(urls, tempFileBase)
+        suffix = tools.getSuffix(urls[0])
+        fileName = os.path.join(self.videoFilePath, fileName + suffix)
+
+        for i, url in enumerate(urls):
+            self.downloader.multiThreadDownload(url, fileNames[i], headers, \
+                self.fragThreadCnt, self.fragmentCnt)
+        tools.mergePartialVideos(fileNames, fileName)
+        self.saveTempFile or tools.removeFiles(fileNames)
+        print('完成\n')
+
+    # websocket视频流，保存至本地并合并
+    def handleStream(self, fileName, audioFormat, videoFormat, **desc):
+        print("-- dispatcher/handleStream")
+
+        audioName = os.path.join(self.tempFilePath, fileName + '.audio' + audioFormat)
+        videoName = os.path.join(self.tempFilePath, fileName + '.video' + videoFormat)
+        fileName = os.path.join(self.videoFilePath, fileName + '.mp4')
+
+        self.downloader.saveStream(audioName, videoName, **desc)
+        tools.mergeAudio2Video([audioName], [videoName], fileName)
+        self.saveTempFile or tools.removeFiles([audioName, videoName])
+        print('完成\n')
+
+
+    def download(self, linksurl, fileName):
+        fileName = re.sub(r'[/\:*?"<>|]', '_', fileName)
+        videoType, headers, audioUrls, videoUrls = api.preProcessUrl(linksurl)
+
+        if videoType == 'hls':
+            self._downloadHls(videoUrls, fileName, headers)
+        elif videoType == 'dash':
+            self._downloadDash(audioUrls, videoUrls, fileName, headers)
+        elif videoType == 'partial':
+            self._downloadPartialVideos(videoUrls, fileName, headers)
+
+    def downloadMultiParts(self, linksurl, baseFileName, pRange):
+        startP, endP, allPartInfo = api.preProcessMultiPartUrl(linksurl, pRange)
+
+        print('准备下载第%d-%dP\n' % (startP, endP))
+
+        for i in range(startP-1, endP):
+            partName, videoUrl = allPartInfo[i]['name'], allPartInfo[i]['videoUrl']
+            fileName = 'P%03d__%s__%s' % (i + 1, baseFileName, partName)
+            print('开始下载第%dP: %s' % (i + 1, fileName))
+            self.download(videoUrl, fileName)
+
+    def dispatch(self, **task):
+        self.task = task
+        task['type'] = task.get('type', 'link')
+        print()
+
+        try:
+            if task['type'] == 'link':
+                linksurl, fileName = task['linksurl'], task['fileName']
+                if task.get('pRange'):
+                    self.downloadMultiParts(linksurl, fileName, task['pRange'])
+                else:
+                    self.download(linksurl, fileName)
+            elif task['type'] == 'stream':
+                self.handleStream(**task)
+        except Exception as e:
+            print('-' * 100)
+            traceback.print_exc()
+            print('-' * 100)
+        except KeyboardInterrupt:
+            self.shutdown()
+        finally:
+            task['type'] == 'stream' and task['close']()
+            self.task = None
+
+    def shutdown(self):
+        if self.task:
+            task = self.task
+            self.task = None
+
+            if task['type'] == 'stream':
+                task['dataQueue'].put(KeyboardInterrupt())
+            self.downloader.shutdownAndClean()
