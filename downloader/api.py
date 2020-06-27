@@ -6,7 +6,7 @@ from tools import XMLUtils
 
 # 获取url所需请求头
 def getHeaders(url):
-    isBilibili = url.find('acgvideo.com') > 0 or url.find('bili') > 0
+    isBilibili = url.find('bili') > 0 or url.count('.m4s') == 2
     isIqiyi = url.find('iqiyi.com') > 0
     isMgtv = url.find('mgtv.com') > 0
 
@@ -61,7 +61,7 @@ def parseIqiyiUrl(url, headers = {}):
 
 # 预处理油猴链接，返回解析后的url和所需请求头
 def preProcessUrl(url):
-    isBilibili = url.find('acgvideo.com') > 0 or url.find('bili') > 0
+    isBilibili = url.find('bili') > 0 or url.count('.m4s') == 2
     isIqiyi = url.find('iqiyi.com') > 0
 
     headers = getHeaders(url)

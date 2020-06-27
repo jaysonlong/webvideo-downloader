@@ -2,134 +2,133 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.2
+// @version 1.3
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.iqiyi.com/*.html
 // @match *://v.qq.com/x/cover/*
 // @match *://v.qq.com/x/page/*
 // @match *://www.mgtv.com/b/*
-// @require https://cdn.bootcdn.net/ajax/libs/jquery/1.7.2/jquery.min.js
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
+// @require https://cdn.bootcdn.net/ajax/libs/draggabilly/2.3.0/draggabilly.pkgd.min.js
+// @require https://cdn.bootcdn.net/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js
 // @run-at document-start
-// @grant none
+// @grant GM_info
+// @inject-into page
 // @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js
 // @homepageURL https://github.com/jaysonlong/webvideo-downloader
 // ==/UserScript==
 
-var pad = '&nbsp;&nbsp;';
-var serverUrl = 'ws://localhost:18888';
-var cbFn = {};
-var handled = false;
 
 var storage = {
+  // 通用
+  serverUrl: 'ws://127.0.0.1:18888',
+  cbFn: {},
+  downloadBtn: null,
+  downloadModal: null,
+  playinfoUrl: null,
+
   // bilibili
-  playinfoSource: 0,
-  playinfoUrl: 0,
+  playinfoSource: null,
 
   // 腾讯视频
-  url: 0,
-  method: 0,
-  body: 0,
+  playinfoMethod: null,
+  playinfoBody: null,
 };
 
-var isIqiyi = location.href.indexOf('iqiyi.com') > 0;
-var isBilibili = location.href.indexOf('bilibili.com') > 0;
-var isTencent = location.href.indexOf('qq.com') > 0;
-var isMGTV = location.href.indexOf('mgtv.com') > 0;
+var domains = ['bilibili.com', 'iqiyi.com', 'qq.com', 'mgtv.com'];
 
-if (isBilibili) {
-  // 方法1，从html script标签中获取playinfo
-  $(() => {
-    if (!handled && $('html').html().includes('__playinfo__')) {
-      handled = true;
-      storage.playinfoSource = "embedded html";
-
-      eval($('script:contains(__playinfo__)').text());
-      bilibili_parseResult(window.__playinfo__);
-    }
-  });
-
-  // 方法2，ajax拦截
-  ah.hook({
-    open: function(args, xhr) {
-      var url = args[1];
-      if (!handled && url.indexOf('playurl?') > 0) {
-        handled = true;
-        storage.playinfoSource = "xhr request";
-        storage.playinfoUrl = url.startsWith('http') ? url : window.location.protocol + url;
-
-        fetch(storage.playinfoUrl, {
-          credentials: 'include'
-        }).then(response => response.json()).then(bilibili_parseResult);
+var handler = {
+  'bilibili.com': function() {
+    // 首次加载
+    $.ready(function() {
+      var ele = $('script', each => each.innerText.includes('__playinfo__'));
+      if (ele.length) {
+        storage.playinfoSource = "embedded html";
+        eval(ele[0].innerText);
+        bilibili_parseResult(window.__playinfo__);
       }
-    }
-  });
-
-  observeUrl(() => (handled = false));
-
-} else if (isIqiyi) {
-  // 方法1，ajax拦截
-  ah.hook({
-    open: function(args, xhr) {
-      var url = args[1];
-      if (url.indexOf('dash?') > 0) {
-        iqiyi_parseUrl(url);
+    });
+    // 单页跳转
+    ajaxHook({
+      open: function([_, url], xhr) {
+        if (url.indexOf('playurl?') > 0) {
+          storage.playinfoSource = "xhr request";
+          storage.playinfoUrl = url.startsWith('http') ? url : location.protocol + url;
+          fetch(storage.playinfoUrl, {
+            credentials: 'include'
+          }).then(resp => resp.json()).then(bilibili_parseResult);
+        }
       }
-    }
-  });
+    });
+  },
 
-  // 方法2，jsonp拦截
-  jsonpIntercept('/jp/dash?', iqiyi_parseUrl);
-
-} else if (isTencent) {
-  // ajax拦截
-  ah.hook({
-    open: ([method, url], xhr) => {
-      var [method, url] = args;
-      xhr.method = method;
-      xhr.url = url;
-    },
-    send: (args, xhr) => {
-      var body = args[0];
-      if (xhr.url.indexOf('qq.com/proxyhttp') > 0 && body.indexOf('vinfoparam') > 0) {
-        xhr.body = body;
+  'iqiyi.com': function() {
+    ajaxHook({
+      open: function([_, url]) {
+        if (url.indexOf('dash?') > 0) {
+          storage.playinfoUrl = url;
+          fetch(url, {
+            credentials: 'include'
+          }).then(resp => resp.json()).then(iqiyi_parseResult);
+        }
       }
-    },
-    onreadystatechange: function(xhr) {
-      if (!handled && xhr.body && xhr.readyState == 4) {
-        handled = true;
-        Object.assign(storage, {
-          url: xhr.url,
-          method: xhr.method,
-          body: xhr.body,
-        });
-        tencent_parseResult(xhr.responseText);
-      }
-    },
-  });
+    });
+  },
 
-  observeUrl(() => (handled = false));
+  'qq.com': function() {
+    ajaxHook({
+      open: ([method, url], xhr) => {
+        xhr.method = method;
+        xhr.url = url;
+      },
+      send: ([body], xhr) => {
+        if (xhr.url.indexOf('qq.com/proxyhttp') > 0 && body.indexOf('vinfoparam') > 0) {
+          xhr.body = body;
+        }
+      },
+      onreadystatechange: function(xhr) {
+        if (xhr.body && xhr.readyState == 4) {
+          Object.assign(storage, {
+            playinfoUrl: xhr.url,
+            playinfoMethod: xhr.method,
+            playinfoBody: xhr.body,
+          });
+          tencent_parseResult(xhr.responseText);
+        }
+      },
+    });
+  },
 
-} else if (isMGTV) {
-  // jsonp拦截
-  jsonpIntercept('getSource?', mgtv_parseResult);
+  'mgtv.com': function() {
+    jsonpHook('getSource?', mgtv_parseResult);
+  },
 }
 
+prepare();
+domains.some(domain => {
+  if (location.href.indexOf(domain) != -1) {
+    handler[domain]();
+    return true;
+  }
+});
+
+
+// --------------------------------------------------------------
 
 // bilibili: 获取视频链接
 async function bilibili_parseResult(rs) {
   var data = rs.result || rs.data;
-  console.log(data);
+  $.logEmphasize('VideoInfo', data);
 
   var htmls = [];
-  htmls.push('<b>单P下载</b>');
-  var singlePartHtmls = await bilibili_fetchHtmls(data);
+  htmls.push(`<b>单P下载 (${storage.playinfoSource})</b>`);
+  var singlePartHtmls = await bilibili_singlePart(data);
   htmls = htmls.concat(singlePartHtmls)
 
   htmls.push('<b>多P下载</b>');
   if (storage.playinfoUrl) {
-    var pageUrl = window.location.href;
+    var pageUrl = location.href;
     pageUrl = pageUrl.indexOf('?') != -1 ? pageUrl : pageUrl + '?';
     var playinfoBaseUrl = storage.playinfoUrl.replace(/&cid=[^&]+?$|cid=.+?&/, '');
     var sessCookie = document.cookie.split('; ').filter(each => each.startsWith('SESSDATA='));
@@ -137,17 +136,19 @@ async function bilibili_parseResult(rs) {
 
     var url = `${pageUrl}|${playinfoBaseUrl}|${sessCookie}`;
     var tips = sessCookie ? '' : '未登录或cookie中的SESSDATA项的HttpOnly属性为true，只能获取低清晰度版本';
-    htmls.push(tips + pad + toAnchor(url, 'multi'));
+    htmls.push(`${tips}  ${createLink(url, 'remote multi')}`);
   } else {
-    htmls.push(toAnchor(location.href, 'multi'));
+    htmls.push(createLink(location.href, 'remote multi'));
   }
 
-  htmls = htmls.join('<br><br>')
-  openDialog(`视频链接 (playinfo source: ${storage.playinfoSource})`, htmls);
+  $.waitForTitleChange(() => updateModal({
+    title: document.title,
+    content: htmls.join('\n'),
+  }), storage.downloadBtn ? 3000 : 0);
 }
 
-
-async function bilibili_fetchHtmls(data) {
+// bilibili: 获取单P视频链接
+async function bilibili_singlePart(data) {
   var htmls = [];
 
   if (data.dash) {
@@ -157,21 +158,14 @@ async function bilibili_fetchHtmls(data) {
     var { baseUrl: audioUrl } = data.dash.audio.sort(sortBw)[0];
     var defns = [];
     data.dash.video.sort(sortBw).forEach(video => {
-      if (defns.includes(video.id)) {
-        return;
-      }
+      if (defns.includes(video.id)) return;
       defns.push(video.id);
 
-      var {
-        width,
-        height,
-        baseUrl: videoUrl,
-        bandwidth: videoBw
-      } = video;
+      var { width, height, baseUrl: videoUrl } = video;
       var url = audioUrl + '|' + videoUrl;
       var timelength = Math.floor(data.dash.duration / 60);
-      var fileformat = parseFileExt(url);
-      var html = `${width}x${height}` + pad + fileformat + pad + `${timelength}分钟` + pad + toAnchor(url);
+      var fileformat = url.match(/[^/?]+\.([^/?]+)\?/)[1];
+      var html = `${width}x${height}  ${fileformat}  ${timelength}分钟  ${createLink(url)}`;
       htmls.push(html);
     });
   } else if (data.durl) {
@@ -189,11 +183,7 @@ async function bilibili_fetchHtmls(data) {
 
     var playinfoList = await tasks;
     htmls = playinfoList.map(playinfo => {
-      var {
-        timelength,
-        format: fileformat,
-        durl
-      } = playinfo;
+      var { timelength, durl, format: fileformat } = playinfo;
       var size = 0, urls = [], url;
       for (var each of durl) {
         size += each.size;
@@ -202,38 +192,34 @@ async function bilibili_fetchHtmls(data) {
       url = urls.join('|');
       size = Math.floor(size / 1024 / 1024);
       timelength = Math.floor(timelength / 1000 / 60);
-      return fileformat + pad + `${timelength}分钟` + pad + `${size}MB` + pad + `分${urls.length}段` + pad + toAnchor(url);
+      return `${fileformat}  ${timelength}分钟  ${size}MB  分${urls.length}段  ${createLink(url)}`;
     });
   }
   return htmls;
 }
 
 
-// 爱奇艺: 获取m3u8链接
-function iqiyi_parseUrl(url) {
-  fetch(url, {
-    credentials: 'include'
-  }).then(response => response.json()).then(rs => {
-    console.log(rs);
+// 爱奇艺: 获取视频链接
+function iqiyi_parseResult(rs) {
+  $.logEmphasize('VideoInfo', rs);
 
-    var videos = rs.data.program.video.filter(each => each.m3u8 != undefined);
-    if (videos.length) {
-      var {
-        vsize: size,
-        m3u8,
-        ff: fileformat,
-        scrsz: wh,
-        vid
-      } = videos[0];
-      var size = Math.floor(size / 1024 / 1024);
-      var downloadAnchor = '';
-      // var blob = new Blob([m3u8]);
-      // var blobUrl = URL.createObjectURL(blob);
-      // downloadAnchor = toAnchor(blobUrl, vid + '.m3u8', '点击下载视频信息');
-      var html = `${fileformat + pad + wh + pad + size + 'M' + pad + toAnchor(url) + pad + downloadAnchor}<br><br>`;
-      openDialog('视频链接', html);
-    }
-  });
+  var videos = rs.data.program.video.filter(each => each.m3u8 != undefined);
+  if (videos.length) {
+    var {
+      vid,
+      m3u8,
+      vsize: size,
+      ff: fileformat,
+      scrsz: wh,
+    } = videos[0];
+    var size = Math.floor(size / 1024 / 1024);
+    var html = `${fileformat}  ${wh}  ${size}M  ${createLink(storage.playinfoUrl)}`;
+
+    $.waitForTitleChange(() => updateModal({
+      title: document.title,
+      content: html,
+    }), storage.downloadBtn ? 3000 : 0);
+  }
 };
 
 
@@ -242,23 +228,17 @@ function tencent_parseResult(rs) {
   var data = typeof rs == "string" ? JSON.parse(rs) : rs;
   var vinfo = JSON.parse(data.vinfo);
 
-  console.log(vinfo);
+  $.logEmphasize('VideoInfo', vinfo);
 
   var tasks = vinfo.fl.fi.map(each => new Promise(resolve => {
-    var {
-      name: defn,
-      cname: defdesc
-    } = each;
-    var body = storage.body.replace(/defn=[^&]*/, 'defn=' + defn);
-    fetch(storage.url, {
+    var { name: defn, cname: defDesc } = each;
+    var body = storage.playinfoBody.replace(/defn=[^&]*/, 'defn=' + defn);
+    fetch(storage.playinfoUrl, {
         body: body,
-        method: storage.method,
+        method: storage.playinfoMethod,
       })
       .then(resp => resp.json())
-      .then(data => ({
-        defdesc,
-        data
-      }))
+      .then(data => ({ defDesc, data }))
       .then(resolve);
   }));
 
@@ -266,100 +246,64 @@ function tencent_parseResult(rs) {
     var html = '';
     rsList.forEach(each => {
       try {
-        var {
-          url,
-          width,
-          height,
-          size
-        } = tencent_parseVideoInfo(each.data);
-        html += `${width + 'x' + height + pad + each.defdesc + pad + size + 'M' + pad + toAnchor(url)}<br/><br/>`;
+        var { url, width, height, size } = tencent_parseVideoInfo(each.data);
+        html += `${width}x${height}  ${each.defDesc}  ${size}M  ${createLink(url)}\n`;
       } catch (e) {}
     })
 
-    openDialog('视频链接', html);
+    updateModal({
+      title: document.title,
+      content: html,
+    });
   });
 }
 
-// 腾讯视频: 解析视频信息对象
+// 腾讯视频: 解析视频信息
 function tencent_parseVideoInfo(data) {
   var vinfo = JSON.parse(data.vinfo);
   var vi = vinfo.vl.vi[0];
   var ui = vi.ul.ui[0];
   var url = ui.url;
-  var {
-    vw: width,
-    vh: height,
-    fs: size
-  } = vi;
+  var { vw: width, vh: height, fs: size } = vi;
   size = Math.floor(size / 1024 / 1024);
-
-  return {
-    url,
-    width,
-    height,
-    size
-  }
+  return { url, width, height, size }
 }
 
 // 芒果TV: 获取视频链接
 function mgtv_parseResult(rs) {
+  $.logEmphasize('VideoInfo', rs);
+
   var host = rs.data.stream_domain[0];
   var videoInfo = rs.data.stream.filter(each => each.url != '');
   var tasks = videoInfo.map((each, i) => new Promise(resolve => {
-    var {
-      fileformat,
-      name,
-      url
-    } = each;
-    var ele = document.createElement('script');
-    var cb = 'jaysonCb' + i;
-    url = host + each.url + '&callback=' + cb;
-    ele.src = url;
-    document.body.appendChild(ele);
-
-    window[cb] = function(rs) {
+    var { fileformat, name, url } = each;
+    url = host + each.url;
+    
+    $.jsonp(url).then(rs => {
       var url = rs.info;
       fetch(url).then(resp => resp.text()).then(rs => {
-        var {
-          width,
-          height,
-          size
-        } = parseVideoInfo_mgtv(rs);
-        resolve({
-          width,
-          height,
-          size,
-          fileformat,
-          name,
-          url
-        });
+        var { width, height, size } = mgtv_parseVideoInfo(rs);
+        resolve({ width, height, size, fileformat, name, url });
       });
-
-      document.body.removeChild(ele);
-      window[cb] = undefined;
-    };
+    });
   }));
 
   Promise.all(tasks).then(rsList => {
     var html = '';
     rsList.forEach(rs => {
-      var {
-        width,
-        height,
-        size,
-        fileformat,
-        name,
-        url
-      } = rs;
-      html += `${width + 'x' + height + pad + fileformat + pad + name + pad + size + 'M' + pad + toAnchor(url)}<br><br>`;
+      var { width, height, size, fileformat, name, url } = rs;
+      html += `${width}x${height}  ${fileformat}  ${name}  ${size}M  ${createLink(url)}\n`;
     })
 
-    openDialog('视频链接', html);
+    updateModal({
+      title: document.title,
+      content: html,
+    });
   })
 }
 
 // 芒果TV: 解析视频信息
-function parseVideoInfo_mgtv(rs) {
+function mgtv_parseVideoInfo(rs) {
   var width = rs.match(/EXT-MGTV-VIDEO-WIDTH:(\d+)/)[1];
   var height = rs.match(/EXT-MGTV-VIDEO-HEIGHT:(\d+)/)[1];
   var size = 0;
@@ -368,117 +312,268 @@ function parseVideoInfo_mgtv(rs) {
     size += eachSize;
   });
   size = Math.floor(size / 1024 / 1024);
+  return { width, height, size }
+}
 
-  return {
-    width,
-    height,
-    size
-  }
+// 调用下载器创建任务
+async function remoteCall(url, multi) {
+  var ws = new WebSocket(storage.serverUrl);
+  ws.onerror = function() {
+    Swal.fire({
+      type: 'error',
+      title: '请先运行 "python daemon.py"',
+    });
+  };
+  ws.onopen = function() {
+    var queue = [{title:'输入文件名', inputValue: storage.downloadModal.title}];
+    multi && queue.push('输入首、尾P(空格分隔)或单P');
+    Swal.mixin({
+      input: 'text',
+      showCancelButton: true,
+      confirmButtonText: '<i class="fa fa-arrow-right"></i>',
+      cancelButtonText: '<i class="fa fa-times"></i>',
+      progressSteps: Object.keys(queue).map(idx => parseInt(idx) + 1),
+    }).queue(queue).then((result) => {
+      if (result.value) {
+        var payload = {
+          fileName: result.value[0],
+          pRange: result.value[1],
+          linksurl: url,
+          type: 'link',
+        }
+        ws.send(JSON.stringify(payload));
+        ws.onmessage = e => {
+          var [type, title] = ['success', '任务已创建'];
+          if (e.data != 'success') {
+            [type, title] = ['error', '创建任务失败'];
+          }
+          Swal.fire({
+            type,
+            title,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1000
+          });
+          ws.close();
+        }
+      }
+    })
+  };
+}
+
+// 更新下载内容（设置模态框的标题和正文）
+function updateModal({title, content}) {
+  storage.downloadModal = {title, content};
+  if (storage.downloadBtn) return;
+
+  storage.downloadBtn = $.create('div', {
+    id: 'dl-btn', 
+    innerHTML: '<span>下载<br>视频</span>',
+    appendToBody: true,
+  });
+  var draggie = new Draggabilly(storage.downloadBtn);
+  draggie.on('staticClick', e => {
+    Swal.fire({
+      title: storage.downloadModal.title,
+      html: storage.downloadModal.content,
+      customClass: {
+        container: 'dl-modal',
+        title: 'dl-modal-title',
+        content: 'dl-modal-content',
+      },
+      showCloseButton: true,
+      showConfirmButton: false,
+      focusConfirm: false,
+    });
+    $('.dl-modal')[0].on('click', '.remote', e => {
+      e.preventDefault();
+      remoteCall(e.target.href, e.target.classList.contains('multi'));
+    });
+  });
+}
+
+function createLink(url, clz = 'remote', text = '点击下载或复制链接') {
+  return `<a href="${url}" class="${clz}">${text}</a>`;
+}
+
+
+// --------------------------------------------------------------
+
+
+// ajax拦截
+function ajaxHook() {
+  ah.hook(...arguments);
+  unsafeWindow.XMLHttpRequest = XMLHttpRequest;
 }
 
 // jsonp拦截
-function jsonpIntercept(urlKey, cbFunc, cbKey = 'callback') {
+function jsonpHook(urlKey, cbFunc, cbKey = 'callback') {
   document._createElement = document.createElement;
   document.createElement = function(type) {
     var ele = document._createElement(type);
-
     if (type.toLowerCase() == 'script') {
       setTimeout(() => {
         if (ele.src.indexOf(urlKey) > 0) {
           var cbName = ele.src.match(new RegExp(cbKey + '=([^&]+)'))[1];
-
-          if (!cbFn[cbName]) {
-            cbFn[cbName] = window[cbName];
-            Object.defineProperty(window, cbName, {
+          if (!storage.cbFn[cbName]) {
+            storage.cbFn[cbName] = unsafeWindow[cbName];
+            Object.defineProperty(unsafeWindow, cbName, {
               get: () => {
-                if (!cbFn[cbName]) {
+                if (!storage.cbFn[cbName]) {
                   return undefined;
                 }
                 return (rs) => {
                   try {
                     cbFunc(rs);
                   } catch (e) {}
-                  cbFn[cbName](rs);
+                  storage.cbFn[cbName](rs);
                 };
               },
               set: (fn) => {
-                cbFn[cbName] = fn;
+                storage.cbFn[cbName] = fn;
               }
             });
           }
         }
+
       }, 0);
     }
-
     return ele;
   }
 }
 
-// 检测url变化
-function observeUrl(cbFunc) {
-  window.history._pushState = window.history.pushState;
-  window.history._replaceState = window.history.replaceState;
-
-  window.history.pushState = function() {
-    cbFunc();
-    return window.history._pushState(...arguments);
-  }
-  window.history.replaceState = function() {
-    cbFunc();
-    return window.history._replaceState(...arguments);
-  }
+// 元素选择器
+function $(selector, filterFn = null) {
+  var eles = Array(...document.querySelectorAll(selector));
+  return filterFn ? eles.filter(filterFn) : eles;
 }
 
-function parseFileExt(url) {
-  return url.match(/[^/?]+\.([^/?]+)\?/)[1];
-}
+// 初始化工作
+function prepare() {
+  Object.assign($, {
+    create: function(tagName, attrs = {}) {
+      var ele = document.createElement(tagName);
+      Object.assign(ele, attrs);
+      if (attrs.appendToBody) {
+        document.body.appendChild(ele);
+      }
+      return ele;
+    },
+    ready: function(callback) {
+      document.addEventListener("DOMContentLoaded", callback);
+    },
+    load: function(callback) {
+      window.addEventListener('load', callback);
+    },
+    addStyle: function(source) {
+      if (source.startsWith('http')) {
+        $.create('link', {
+          rel: 'stylesheet',
+          href: source,
+          appendToBody: true,
+        })
+      } else {
+        $.create('style', {
+          innerText: source,
+          appendToBody: true,
+        })
+      }
+    },
+    jsonp: function(url, cbKey = 'callback') {
+      $.counter = $.counter ? $.counter + 1 : 1;
+      var cbName = 'jaysonCb' + $.counter;
 
-function toAnchor(url, type = 'single', text = '点击下载或复制链接') {
-  if (type == 'single') {
-    return `<a class="remote" href="${url}">${text}</a>`;
-  } else if (type == 'multi') {
-    return `<a data-multi="multi" class="remote" href="${url}">${text}</a>`;
-  } else {
-    return `<a download="${type}" href="${url}">${text}</a>`;
-  }
-}
-
-function openDialog(title, html) {
-  var div = $(`<div style="">${title + pad}<button class="remove">关闭</button><br><br>${html}</div>`);
-  div[0].setAttribute('style', 'font-size:15px;position:absolute;width:50%;padding:25px;border:2px solid #03a9f4;' +
-    'border-radius:10px;background:rgba(255,255,255,.9);top:100px;left:20%;z-index:10000;word-wrap:break-word;');
-  $('body').append(div);
-
-  div.find('a').css('color', '#0000EE');
-  div.find('a.remote').click(remoteCall);
-  div.find('button.remove').css('marginLeft', '20px').click((e) => {
-    div.remove();
-    e.stopPropagation();
+      return new Promise(resolve => {
+        var script = $.create('script', {
+          src: `${url}&${cbKey}=${cbName}`,
+          appendToBody: true,
+        });
+        unsafeWindow[cbName] = function(data) {
+          resolve(data);
+          script.remove();
+          unsafeWindow[cbName] = undefined;
+        };
+      })
+    },
+    waitForTitleChange: function(callback, timeout = 0) {
+      var handled = false;
+      var wrappedCb = () => handled || (handled = true) && callback();
+      $('title')[0].on('childListChanged', wrappedCb, true);
+      setTimeout(wrappedCb, timeout);
+    },
+    logEmphasize: function() {
+      var args = [...arguments];
+      args.splice(0, 1, '%c' + args[0], 'color:green;font-size:1.3em;font-weight:bold;background:#abfdc1;');
+      console.log(...args);
+    }
   });
-};
 
-async function remoteCall(e) {
-  e.preventDefault();
-  var ws = new WebSocket(serverUrl);
-  var dom = this;
+  Object.assign(HTMLElement.prototype, {
+    is: function(selector) {
+      return $(selector).includes(this);
+    },
+    on: function(event, arg1, arg2) {
+      if (event === 'childListChanged') {
+        var [listener, once] = [arg1, arg2];
+        var observer = new MutationObserver(function() {
+            listener.call(this);
+            once && observer.disconnect();
+        });
+        observer.observe(this, {childList: true});
+      } else {
+        var [selector, listener] = arg2 instanceof Function ? [arg1, arg2] : [null, arg1];
+        this.addEventListener(event, e => {
+          if (!selector || e.target.is(selector)) {
+            listener.call(e.target, e);
+          }
+        });
+      }
+      return this;
+    },
+  });
 
-  ws.onerror = function() {
-    alert('请先运行 "python daemon.py"');
-  };
-  ws.onopen = function() {
-    var payload = {
-      fileName: prompt('输入文件名: ', document.title)
-    };
-    if (payload.fileName == null) {
-      return;
-    }
-
-    payload.linksurl = dom.href;
-    payload.type = 'link';
-    if (dom.dataset.multi && !(payload.pRange = prompt('输入首、尾P(空格分隔)或单P: '))) {
-      return;
-    }
-    ws.send(JSON.stringify(payload));
-    ws.close();
-  };
+  $.ready(() => {
+    $.addStyle('https://cdn.bootcdn.net/ajax/libs/font-awesome/4.0.0/css/font-awesome.min.css');
+    $.addStyle(`
+      #dl-btn {
+        z-index: 1000;
+        position: fixed;
+        top: 200px;
+        left: 5px;
+        width: 50px;
+        height: 50px;
+        line-height: 50px;
+        border-radius: 50%;
+        border: #fff solid 1.5px;
+        box-shadow: 0 3px 10px rgb(48, 133, 214);
+        text-align: center;
+        background: rgb(48, 133, 214);
+        color: white;
+        cursor: pointer;
+      }
+      #dl-btn:hover {
+        background-image: linear-gradient(rgba(0,0,0,.1),rgba(0,0,0,.1));
+      }
+      #dl-btn span {
+        display: inline-block;
+        font-size: 12px;
+        line-height: 15px;
+        vertical-align: middle;
+      }
+      .dl-modal-title {
+        font-size: 18px;
+      }
+      .dl-modal-content {
+        font-size: 15px;
+        line-height: 30px;
+        white-space: pre;
+      }
+      .dl-modal-content a {
+        color: blue;
+      }
+      .dl-modal-content b {
+        font-weight: bold;
+      }
+    `);
+  });
 }

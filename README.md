@@ -22,14 +22,14 @@
 
 3. 打开支持的视频网站，点击某个视频
 
-4. 网页会自动弹出视频链接，点击链接远程调用下载器，或右键复制链接手动下载
+4. 网页自动弹出下载按钮，点击按钮打开下载对话框，点击链接远程调用下载器，或右键复制链接手动下载
 
-   ![bilibili](img/bilibili.png)
+   ![bilibili](img/bilibili.gif)
 
 ### Downloader
 
-本项目使用 [FFmpeg](https://ffmpeg.org/) 作为视频处理工具，windows版本已内置，linux下需自行安装。
+本项目使用 [FFmpeg](https://ffmpeg.org/) 作为视频处理工具，windows 版本已内置，linux 下需自行安装。
 
-- 远程调用下载时，先运行 `python daemon.py` 后，直接点击暴力猴弹出的链接即可，支持单视频下载、bilibili 多P下载和MSE视频流导出
+- 远程调用下载时，先运行 `python daemon.py` 后，直接点击暴力猴弹出的链接即可，支持单视频下载、bilibili 多P下载和 MSE 视频流导出
 - 手动复制链接下载时，先运行 `python common.py` ，再粘贴上面暴力猴解析到的视频链接即可，支持单视频下载、bilibili 多P下载和本地 m3u8 文件解析
 
