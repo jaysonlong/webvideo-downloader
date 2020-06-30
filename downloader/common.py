@@ -1,8 +1,4 @@
 # -*- coding:utf-8 -*-
-import requests
-import re
-import json
-import traceback
 from dispatcher import TaskDispatcher
 
 
@@ -11,7 +7,7 @@ def main():
     
     while True:
         try:
-            linksurl = input('输入油猴链接或本地m3u8路径: ').strip()
+            linksurl = input('输入暴力猴链接或本地m3u8路径: ').strip()
             fileName = input('输入文件名: ').strip()
             isMultiPart = linksurl.find('www.bilibili.com') != -1
             pRange = input('输入首、尾P(空格分隔)或单P: ').strip() if isMultiPart else None

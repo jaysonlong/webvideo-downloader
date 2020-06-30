@@ -1,9 +1,5 @@
 # -*- coding:utf-8 -*-
-import re
-import json
 import os
-import threading
-import time
 import traceback
 import config
 import api
@@ -94,7 +90,7 @@ class TaskDispatcher:
 
 
     def download(self, linksurl, fileName):
-        fileName = re.sub(r'[/\:*?"<>|]', '_', fileName)
+        fileName = tools.escapeFileName(fileName)
         videoType, headers, audioUrls, videoUrls = api.preProcessUrl(linksurl)
 
         if videoType == 'hls':

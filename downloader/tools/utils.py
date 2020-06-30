@@ -1,10 +1,12 @@
 # -*- coding:utf-8 -*-
 import os
 import sys
+import json
 import argparse
 import re
 import shutil
 from pathlib import Path
+from urllib.parse import urlparse, unquote
 import xml.etree.ElementTree as ET
 import requests
 
@@ -75,6 +77,32 @@ def getFileSize(url, headers = {}):
     return int(response.headers['Content-Length'])
 
 
+
+def escapeFileName(fileName):
+    return re.sub(r'[/\:*?"<>|]', '_', fileName)
+
+def stringify(obj):
+    return json.dumps(obj, indent=4, ensure_ascii=False, \
+            default=lambda x: '<not serializable>')
+
+def parseUrlQuery(url):
+    ret = {}
+
+    items = urlparse(unquote(url)).query.split('&')
+    for item in items:
+        key, value = item.split('=')
+        ret[key] = value
+    return ret
+
+def normalResponse(handler, resp, contentType = 'text/html'):
+    handler.send_response(200)
+    handler.send_header('Access-Control-Allow-Origin', '*')
+    handler.send_header('Content-type', contentType)
+    handler.end_headers()
+
+    if isinstance(resp, str):
+        resp = resp.encode('utf-8')
+    handler.wfile.write(resp)
 
 def getBasePath(url):
     return url.split('?', 1)[0].rsplit('/', 1)[0] + '/'

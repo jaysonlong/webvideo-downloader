@@ -2,10 +2,10 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.3
+// @version 1.4
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
-// @match *://www.iqiyi.com/*.html
+// @match *://www.iqiyi.com/*.html*
 // @match *://v.qq.com/x/cover/*
 // @match *://v.qq.com/x/page/*
 // @match *://www.mgtv.com/b/*
@@ -13,7 +13,7 @@
 // @require https://cdn.bootcdn.net/ajax/libs/draggabilly/2.3.0/draggabilly.pkgd.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js
 // @run-at document-start
-// @grant GM_info
+// @grant GM_xmlhttpRequest
 // @inject-into page
 // @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js
 // @homepageURL https://github.com/jaysonlong/webvideo-downloader
@@ -22,7 +22,7 @@
 
 var storage = {
   // 通用
-  serverUrl: 'ws://127.0.0.1:18888',
+  serverAddr: '127.0.0.1:18888',
   cbFn: {},
   downloadBtn: null,
   downloadModal: null,
@@ -264,6 +264,9 @@ function tencent_parseVideoInfo(data) {
   var vi = vinfo.vl.vi[0];
   var ui = vi.ul.ui[0];
   var url = ui.url;
+  if (url.indexOf('.m3u8') == -1) {
+    url += ui.hls.pt;
+  }
   var { vw: width, vh: height, fs: size } = vi;
   size = Math.floor(size / 1024 / 1024);
   return { url, width, height, size }
@@ -317,48 +320,81 @@ function mgtv_parseVideoInfo(rs) {
 
 // 调用下载器创建任务
 async function remoteCall(url, multi) {
-  var ws = new WebSocket(storage.serverUrl);
-  ws.onerror = function() {
-    Swal.fire({
-      type: 'error',
-      title: '请先运行 "python daemon.py"',
-    });
-  };
-  ws.onopen = function() {
-    var queue = [{title:'输入文件名', inputValue: storage.downloadModal.title}];
-    multi && queue.push('输入首、尾P(空格分隔)或单P');
-    Swal.mixin({
-      input: 'text',
-      showCancelButton: true,
-      confirmButtonText: '<i class="fa fa-arrow-right"></i>',
-      cancelButtonText: '<i class="fa fa-times"></i>',
-      progressSteps: Object.keys(queue).map(idx => parseInt(idx) + 1),
-    }).queue(queue).then((result) => {
-      if (result.value) {
-        var payload = {
-          fileName: result.value[0],
-          pRange: result.value[1],
-          linksurl: url,
-          type: 'link',
-        }
-        ws.send(JSON.stringify(payload));
-        ws.onmessage = e => {
-          var [type, title] = ['success', '任务已创建'];
-          if (e.data != 'success') {
-            [type, title] = ['error', '创建任务失败'];
-          }
-          Swal.fire({
-            type,
-            title,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 1000
-          });
-          ws.close();
-        }
+  var queue = [{title:'输入文件名', inputValue: storage.downloadModal.title}];
+  multi && queue.push('输入首、尾P(空格分隔)或单P');
+  Swal.mixin({
+    input: 'text',
+    showCancelButton: true,
+    confirmButtonText: '<i class="fa fa-arrow-right"></i>',
+    cancelButtonText: '<i class="fa fa-times"></i>',
+    progressSteps: Object.keys(queue).map(idx => parseInt(idx) + 1),
+  }).queue(queue).then((result) => {
+    if (result.value) {
+      var payload = {
+        fileName: result.value[0],
+        pRange: result.value[1],
+        linksurl: url,
+        type: 'link',
       }
-    })
-  };
+      httpCall(payload).then(msg => {
+        Swal.fire({
+          type: 'success',
+          title: msg,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 1000
+        });
+      }).catch(msg => {
+        Swal.fire({
+          type: 'error',
+          title: msg,
+        });
+      });
+    }
+  })
+}
+
+// http调用，不受CSP限制
+function httpCall(payload) {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: "POST",
+      url: 'http://' + storage.serverAddr,
+      data: JSON.stringify(payload),
+      timeout: 600,
+      onload: function(res) {
+        if (res.response == 'success') {
+          resolve('任务已创建');
+        } else {
+          reject('创建任务失败');
+        }
+      },
+      ontimeout: function() {
+        reject('请先运行 "python daemon.py"');
+      }
+    });
+  });
+}
+
+// websocket调用，CSP限制只能使用本地服务器，支持MSE流
+function wsCall(payload) {
+  return new Promise((resolve, reject) => {
+    var ws = new WebSocket('ws://' + storage.serverAddr);
+    ws.onerror = function() {
+      reject('请先运行 "python daemon.py"');
+    };
+    ws.onopen = function() {
+      ws.send(JSON.stringify(payload));
+      ws.onmessage = e => {
+        if (e.data == 'success') {
+          resolve('任务已创建');
+        } else {
+          resolve('创建任务失败');
+        }
+        ws.close();
+      }
+    };
+  });
 }
 
 // 更新下载内容（设置模态框的标题和正文）
@@ -461,9 +497,6 @@ function prepare() {
     },
     ready: function(callback) {
       document.addEventListener("DOMContentLoaded", callback);
-    },
-    load: function(callback) {
-      window.addEventListener('load', callback);
     },
     addStyle: function(source) {
       if (source.startsWith('http')) {

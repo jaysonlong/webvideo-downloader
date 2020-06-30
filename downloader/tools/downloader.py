@@ -2,16 +2,15 @@
 import time
 import sys
 import math
-import traceback
 from concurrent.futures import ThreadPoolExecutor
-from colorama import init 
-import requests
+from colorama import init
+from requests.exceptions import RequestException
 from . import utils
-
 
 init(autoreset=True)
 
-CONN_CLOSE_EXCEPTION = Exception('Connection closed')
+
+CLIENT_CLOSE_EXCEPTION = Exception('Connection closed')
 
 # 自定义线程池
 class MyThreadPool(ThreadPoolExecutor):
@@ -136,7 +135,7 @@ class WebDownloader:
                         downloadedSize += len(chunk)
                         self.currSize += len(chunk)
                     break
-                except requests.exceptions.RequestException:
+                except RequestException:
                     if response and response.status_code != 206:
                         f.seek(start)
                         self.currSize -= downloadedSize
@@ -215,7 +214,7 @@ class WebDownloader:
                 if data is None:
                     continue
                 elif isinstance(data, BaseException):
-                    if data == CONN_CLOSE_EXCEPTION:
+                    if data == CLIENT_CLOSE_EXCEPTION:
                         break
                     raise data
                 elif data['type'] == 'video':
