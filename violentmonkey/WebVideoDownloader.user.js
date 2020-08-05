@@ -5,6 +5,7 @@
 // @version 1.4
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
+// @match *://www.bilibili.com/s/video/*
 // @match *://www.iqiyi.com/*.html*
 // @match *://v.qq.com/x/cover/*
 // @match *://v.qq.com/x/page/*
@@ -135,7 +136,7 @@ async function bilibili_parseResult(rs) {
     sessCookie = sessCookie.length ? sessCookie[0] : '';
 
     var url = `${pageUrl}|${playinfoBaseUrl}|${sessCookie}`;
-    var tips = sessCookie ? '' : '未登录或cookie中的SESSDATA项的HttpOnly属性为true，只能获取低清晰度版本';
+    var tips = sessCookie ? '' : '未登录或cookie中的SESSDATA项的HttpOnly属性为true，不一定支持最高清晰度';
     htmls.push(`${tips}  ${createLink(url, 'remote multi')}`);
   } else {
     htmls.push(createLink(location.href, 'remote multi'));
@@ -599,7 +600,7 @@ function prepare() {
       .dl-modal-content {
         font-size: 15px;
         line-height: 30px;
-        white-space: pre;
+        white-space: pre-wrap;
       }
       .dl-modal-content a {
         color: blue;
