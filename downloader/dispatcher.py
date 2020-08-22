@@ -22,6 +22,7 @@ class TaskDispatcher:
 
         tools.mkdirIfNotExists(self.tempFilePath)
         tools.mkdirIfNotExists(self.videoFilePath)
+        tools.checkFFmpeg()
 
 
 

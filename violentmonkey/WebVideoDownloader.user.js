@@ -84,7 +84,8 @@ var handler = {
         xhr.url = url;
       },
       send: ([body], xhr) => {
-        if (xhr.url.indexOf('qq.com/proxyhttp') > 0 && body.indexOf('vinfoparam') > 0) {
+        if (xhr.url.includes('qq.com/proxyhttp') && 
+          (body.includes('vinfoparam') || body.includes('vkeyparam'))) {
           xhr.body = body;
         }
       },
@@ -567,6 +568,11 @@ function prepare() {
   });
 
   $.ready(() => {
+    $.create('i', { 
+      className: 'fa fa-arrow-right fa-times', 
+      style: 'visibility:hidden;height:0;width:0;', 
+      appendToBody: true,
+    });
     $.addStyle('https://cdn.bootcdn.net/ajax/libs/font-awesome/4.0.0/css/font-awesome.min.css');
     $.addStyle(`
       #dl-btn {

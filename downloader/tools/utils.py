@@ -9,6 +9,9 @@ from pathlib import Path
 from urllib.parse import urlparse, unquote
 import xml.etree.ElementTree as ET
 import requests
+import colorama
+
+colorama.init(autoreset=True)
 
 
 # xml工具，自动补全namespace
@@ -169,7 +172,7 @@ def formatTime(value):
         return '%2dmin%02ds' % (value // 60, value % 60)
  
 def filterHlsUrls(content, url = None):
-    urls = re.findall(r'\S+\.ts\S+', content)
+    urls = re.findall(r'\S+\.ts\S*', content)
 
     if len(urls) > 0 and not urls[0].startswith('http'):
         basePath = getBasePath(url)
@@ -186,6 +189,11 @@ def getArguments(*options):
     rs = parser.parse_args(sys.argv[1:])
     return rs
 
+def checkFFmpeg():
+    with os.popen('ffmpeg -v quiet 2>&1') as f:
+        if f.read().strip():
+            print('\033[93m警告: ffmpeg命令找不到，将影响视频文件合并，请配置PATH路径，或将其置于当前目录（仅Windows）\033[0m')
+
 def mergePartialVideos(fileNames, fileName, concat = True):
     print('正在合并视频')
 
@@ -194,7 +202,7 @@ def mergePartialVideos(fileNames, fileName, concat = True):
         text = "file '" + ("'\nfile '".join(fileNames)) + "'" 
         with open('concat.txt', 'w') as f:
             f.write(text)
-        cmd = 'ffmpeg -safe 0 -f concat -i concat.txt -c copy -v fatal -y "%s"' % (fileName)
+        cmd = 'ffmpeg -safe 0 -f concat -i concat.txt -c copy -bsf:a aac_adtstoasc -v fatal -y "%s"' % (fileName)
         os.system(cmd)
         removeFiles('concat.txt')
     else:
