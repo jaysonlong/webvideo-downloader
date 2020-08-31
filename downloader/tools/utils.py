@@ -110,8 +110,11 @@ def normalResponse(handler, resp, contentType = 'text/html'):
 def getBasePath(url):
     return url.split('?', 1)[0].rsplit('/', 1)[0] + '/'
 
+def getFileName(url):
+    return url.split('?', 1)[0].rsplit('/', 1)[-1]
+
 def getSuffix(url):
-    return '.' + url.split('?', 1)[0].rsplit('/', 1)[-1].rsplit('.', 1)[-1]
+    return '.' + getFileName(url).rsplit('.', 1)[-1]
 
 def generateFileNames(urls, baseFileName):
     suffix = getSuffix(urls[0])
@@ -195,7 +198,7 @@ def checkFFmpeg():
             print('\033[93m警告: ffmpeg命令找不到，将影响视频文件合并，' + \
                 '请配置PATH路径，或将其置于当前目录（仅Windows）\033[0m')
 
-def mergePartialVideos(fileNames, fileName, concat = True):
+def mergePartialVideos(fileNames, fileName, concat = True, subtitlePath = None):
     print('正在合并视频')
 
     if concat:
@@ -204,14 +207,33 @@ def mergePartialVideos(fileNames, fileName, concat = True):
         with open('concat.txt', 'w') as f:
             f.write(text)
         
-        extraArgs = '-movflags faststart' if fileName.endswith('.mp4') else ''
-        cmd = 'ffmpeg -safe 0 -f concat -i concat.txt -c copy -v fatal ' + \
-            '-bsf:a aac_adtstoasc -y %s "%s"' % (extraArgs, fileName)
+        extraArgs = ''
+        if subtitlePath:
+            extraArgs += ' -i "%s" -c:s mov_text ' % subtitlePath
+        if fileName.endswith('.mp4'):
+            extraArgs += ' -movflags faststart '
+
+        cmd = ('ffmpeg -safe 0 -f concat -i concat.txt %s -c:v copy -c:a copy ' + \
+            '-bsf:a aac_adtstoasc -v fatal -y "%s"') % (extraArgs, fileName)
         os.system(cmd)
+        # print(cmd)
         removeFiles('concat.txt')
     else:
         # 快速二进制合并，适用部分hls
-        mergeFiles(fileNames, fileName)
+        if not subtitlePath:
+            mergeFiles(fileNames, fileName)
+        else:
+            tempFileName = fileName + '.tmp'
+            mergeFiles(fileNames, tempFileName)
+
+            extraArgs = ''
+            if fileName.endswith('.mp4'):
+                extraArgs += ' -movflags faststart '
+
+            cmd = ('ffmpeg -i "%s" -i "%s" -c:s mov_text %s -c:v copy -c:a copy ' + \
+                '-bsf:a aac_adtstoasc -v fatal -y "%s"') % (tempFileName, subtitlePath, extraArgs, fileName)
+            os.system(cmd)
+            removeFiles(tempFileName)
 
 
 def mergeAudio2Video(audioNames, videoNames, fileName):
@@ -229,8 +251,13 @@ def mergeAudio2Video(audioNames, videoNames, fileName):
         videoName = fileName + '.video'
         mergeFiles(videoNames, videoName)
 
-    extraArgs = '-movflags faststart' if fileName.endswith('.mp4') else ''
-    cmd = 'ffmpeg -i "%s" -i "%s"  -c copy -v fatal -y %s "%s"' % (audioName, videoName, extraArgs, fileName)
+    extraArgs = ''
+    if fileName.endswith('.mp4'):
+        extraArgs += ' -movflags faststart'
+
+    cmd = 'ffmpeg -i "%s" -i "%s" -c:v copy -c:a copy %s -v fatal -y "%s"' \
+        % (audioName, videoName, extraArgs, fileName)
+    # print(cmd)
     os.system(cmd)
 
     isMultiAudio and removeFiles(audioName)

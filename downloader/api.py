@@ -69,10 +69,15 @@ def preProcessUrl(url):
     videoType = ''
     audioUrls = []
     videoUrls = []
+    subtitleUrl = None
 
     if url.find('.m3u8') > 0:
         videoType = 'hls'
-        videoUrls = parseHls(url, headers)
+        if len(urls) == 1:
+            videoUrls = parseHls(url, headers)
+        elif len(urls) == 2:
+            videoUrls = parseHls(urls[0], headers)
+            subtitleUrl = urls[1]
     elif isBilibili and url.find('.m4s') > 0:
         videoType = 'dash'
         audioUrls, videoUrls = urls[:1], urls[1:]
@@ -82,7 +87,7 @@ def preProcessUrl(url):
         videoType = 'partial'
         videoUrls = urls
 
-    return videoType, headers, audioUrls, videoUrls
+    return videoType, headers, audioUrls, videoUrls, subtitleUrl
 
 
 # bilibili: 获取所有分P信息

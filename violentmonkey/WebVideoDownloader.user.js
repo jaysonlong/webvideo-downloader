@@ -2,13 +2,14 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.4
+// @version 1.5
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
 // @match *://www.iqiyi.com/*.html*
 // @match *://v.qq.com/x/cover/*
 // @match *://v.qq.com/x/page/*
+// @match *://wetv.vip/*
 // @match *://www.mgtv.com/b/*
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/draggabilly/2.3.0/draggabilly.pkgd.min.js
@@ -24,6 +25,8 @@
 var storage = {
   // 通用
   serverAddr: '127.0.0.1:18888',
+  remoteCallType: 'http', // http || websocket
+
   cbFn: {},
   downloadBtn: null,
   downloadModal: null,
@@ -35,9 +38,12 @@ var storage = {
   // 腾讯视频
   playinfoMethod: null,
   playinfoBody: null,
+
+  // wetv
+  getVinfoUrl: null,
 };
 
-var domains = ['bilibili.com', 'iqiyi.com', 'qq.com', 'mgtv.com'];
+var domains = ['bilibili.com', 'iqiyi.com', 'qq.com', 'wetv.vip', 'mgtv.com'];
 
 var handler = {
   'bilibili.com': function() {
@@ -99,6 +105,12 @@ var handler = {
           tencent_parseResult(xhr.responseText);
         }
       },
+    });
+  },
+
+  'wetv.vip': function() {
+    jsonpHook('getvinfo?', wetv_parseResult, {
+      onMatch: url => storage.getVinfoUrl = url,
     });
   },
 
@@ -240,7 +252,10 @@ function tencent_parseResult(rs) {
         method: storage.playinfoMethod,
       })
       .then(resp => resp.json())
-      .then(data => ({ defDesc, data }))
+      .then(data => {
+        var rs = tencent_parseVideoInfo(data);
+        return Object.assign(rs, { defDesc });
+      })
       .then(resolve);
   }));
 
@@ -248,8 +263,8 @@ function tencent_parseResult(rs) {
     var html = '';
     rsList.forEach(each => {
       try {
-        var { url, width, height, size } = tencent_parseVideoInfo(each.data);
-        html += `${width}x${height}  ${each.defDesc}  ${size}M  ${createLink(url)}\n`;
+        var { url, width, height, size, defDesc } = each;
+        html += `${width}x${height}  ${defDesc}  ${size}M  ${createLink(url)}\n`;
       } catch (e) {}
     })
 
@@ -271,6 +286,53 @@ function tencent_parseVideoInfo(data) {
   }
   var { vw: width, vh: height, fs: size } = vi;
   size = Math.floor(size / 1024 / 1024);
+  return { url, width, height, size }
+}
+
+// WeTV: 获取视频链接
+function wetv_parseResult(rs) {
+  $.logEmphasize('VideoInfo', rs);
+
+  var tasks = rs.fl.fi.map(each => new Promise(resolve => {
+    var { name: defn, cname: defDesc } = each;
+    var url = storage.getVinfoUrl.replace(/defn=[^&]*/, 'defn=' + defn);
+
+    $.jsonp(url).then(rs => {
+      var data = wetv_parseVideoInfo(rs);
+      return Object.assign(data, { defDesc });
+    }).then(resolve);
+  }));
+
+
+  Promise.all(tasks).then(rsList => {
+    var html = '';
+    rsList.forEach(each => {
+      try {
+        var { url, width, height, size, defDesc } = each;
+        html += `${width}x${height}  ${defDesc}  ${size}M  ${createLink(url)}\n`;
+      } catch (e) {}
+    })
+
+    updateModal({
+      title: document.title,
+      content: html,
+    });
+  });
+}
+
+// WeTV: 解析视频信息
+function wetv_parseVideoInfo(vinfo) {
+  var vi = vinfo.vl.vi[0];
+  var ui = vi.ul.ui[0];
+  var url = ui.url;
+  if (url.indexOf('.m3u8') == -1) {
+    url += ui.hls.pt;
+  }
+  var srtUrl = vinfo.sfl.url;
+  url += '|' + srtUrl;
+  var { vw: width, vh: height, fs: size } = vi;
+  size = Math.floor(size / 1024 / 1024);
+
   return { url, width, height, size }
 }
 
@@ -320,8 +382,8 @@ function mgtv_parseVideoInfo(rs) {
   return { width, height, size }
 }
 
-// 调用下载器创建任务
-async function remoteCall(url, multi) {
+// 准备下载信息
+function prepareDownload(url, multi) {
   var queue = [{title:'输入文件名', inputValue: storage.downloadModal.title}];
   multi && queue.push('输入首、尾P(空格分隔)或单P');
   Swal.mixin({
@@ -338,7 +400,18 @@ async function remoteCall(url, multi) {
         linksurl: url,
         type: 'link',
       }
-      httpCall(payload).then(msg => {
+
+      var remoteCallHandler;
+      if (storage.remoteCallType == 'websocket') {
+        remoteCallHandler = wsCall;
+      } else if (storage.remoteCallType == 'http') {
+        remoteCallHandler = httpCall;
+      } else {
+        remoteCallHandler = httpCall;
+      }
+
+      // 创建下载任务
+      remoteCallHandler(payload).then(msg => {
         Swal.fire({
           type: 'success',
           title: msg,
@@ -356,14 +429,14 @@ async function remoteCall(url, multi) {
   })
 }
 
-// http调用，不受CSP限制
+// http调用，不受CSP和Mixed Content限制
 function httpCall(payload) {
   return new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
       method: "POST",
       url: 'http://' + storage.serverAddr,
       data: JSON.stringify(payload),
-      timeout: 600,
+      timeout: 1200,
       onload: function(res) {
         if (res.response == 'success') {
           resolve('任务已创建');
@@ -378,7 +451,7 @@ function httpCall(payload) {
   });
 }
 
-// websocket调用，CSP限制只能使用本地服务器，支持MSE流
+// websocket调用，受CSP和Mixed Content限制，但本地服务器不受影响；支持MSE流传输
 function wsCall(payload) {
   return new Promise((resolve, reject) => {
     var ws = new WebSocket('ws://' + storage.serverAddr);
@@ -425,7 +498,7 @@ function updateModal({title, content}) {
     });
     $('.dl-modal')[0].on('click', '.remote', e => {
       e.preventDefault();
-      remoteCall(e.target.href, e.target.classList.contains('multi'));
+      prepareDownload(e.target.href, e.target.classList.contains('multi'));
     });
   });
 }
@@ -445,39 +518,48 @@ function ajaxHook() {
 }
 
 // jsonp拦截
-function jsonpHook(urlKey, cbFunc, cbKey = 'callback') {
-  document._createElement = document.createElement;
-  document.createElement = function(type) {
-    var ele = document._createElement(type);
-    if (type.toLowerCase() == 'script') {
-      setTimeout(() => {
-        if (ele.src.indexOf(urlKey) > 0) {
-          var cbName = ele.src.match(new RegExp(cbKey + '=([^&]+)'))[1];
-          if (!storage.cbFn[cbName]) {
-            storage.cbFn[cbName] = unsafeWindow[cbName];
-            Object.defineProperty(unsafeWindow, cbName, {
-              get: () => {
-                if (!storage.cbFn[cbName]) {
-                  return undefined;
-                }
-                return (rs) => {
-                  try {
-                    cbFunc(rs);
-                  } catch (e) {}
-                  storage.cbFn[cbName](rs);
-                };
-              },
-              set: (fn) => {
-                storage.cbFn[cbName] = fn;
-              }
-            });
-          }
-        }
+function jsonpHook(urlKey, cbFunc, options = {}) {
+  var { cbParamName = 'callback', once = false, onMatch } = options;
+  var handled = false;
 
-      }, 0);
+  document.createElement = new Proxy(document.createElement, {
+    apply: function(fn, thisArg, [tagName]) {
+      var ele = fn.apply(thisArg, [tagName]);
+
+      if (tagName.toLowerCase() == 'script') {
+        setTimeout(() => {
+          if (ele.src.indexOf(urlKey) > 0) {
+            if (once && handled) return;
+            handled = true;
+            onMatch && onMatch(ele.src);
+
+            var cbName = ele.src.match(new RegExp(cbParamName + '=([^&]+)'))[1];
+            if (!storage.cbFn[cbName]) {
+              storage.cbFn[cbName] = unsafeWindow[cbName];
+              Object.defineProperty(unsafeWindow, cbName, {
+                get: () => {
+                  if (!storage.cbFn[cbName]) {
+                    return undefined;
+                  }
+                  return (rs) => {
+                    try {
+                      cbFunc(rs);
+                    } catch (e) {}
+                    storage.cbFn[cbName](rs);
+                  };
+                },
+                set: (fn) => {
+                  storage.cbFn[cbName] = fn;
+                }
+              });
+            }
+          }
+
+        }, 0);
+      }
+      return ele;
     }
-    return ele;
-  }
+  });
 }
 
 // 元素选择器
@@ -488,6 +570,8 @@ function $(selector, filterFn = null) {
 
 // 初始化工作
 function prepare() {
+  document.originCreateElement = document.createElement;
+
   Object.assign($, {
     create: function(tagName, attrs = {}) {
       var ele = document.createElement(tagName);
@@ -514,15 +598,25 @@ function prepare() {
         })
       }
     },
-    jsonp: function(url, cbKey = 'callback') {
+    jsonp: function(url, skipHook = true, cbParamName = 'callback') {
       $.counter = $.counter ? $.counter + 1 : 1;
       var cbName = 'jaysonCb' + $.counter;
 
       return new Promise(resolve => {
-        var script = $.create('script', {
-          src: `${url}&${cbKey}=${cbName}`,
-          appendToBody: true,
-        });
+        var src;
+        if (url.includes(cbParamName + '=')) {
+          src = url.replace(new RegExp(`${cbParamName}=[^&]*`), `${cbParamName}=${cbName}`);
+        } else {
+          src = `${url}&${cbParamName}=${cbName}`
+        }
+        if (skipHook) {
+
+        }
+        var createMethod = skipHook ? 'originCreateElement' : 'createElement'
+        var script = document[createMethod]('script');
+        script.src = src;
+        document.body.appendChild(script);
+
         unsafeWindow[cbName] = function(data) {
           resolve(data);
           script.remove();

@@ -27,17 +27,27 @@ class TaskDispatcher:
 
 
     # hls: 下载所有ts分片并合并
-    def _downloadHls(self, urls, fileName, headers = {}):
+    def _downloadHls(self, urls, fileName, headers = {}, subtitleUrl = None):
         print("-- dispatcher/downloadHls")
         print('匹配到%d段视频，开始下载' % len(urls))
 
         tempFileBase = os.path.join(self.tempFilePath, fileName)
         fileNames = tools.generateFileNames(urls, tempFileBase)
-        fileName = os.path.join(self.videoFilePath, fileName + '.mp4')
+        finalFileName = os.path.join(self.videoFilePath, fileName + '.mp4')
 
         self.downloader.downloadAll(urls, fileNames, headers, self.hlsThreadCnt)
-        tools.mergePartialVideos(fileNames, fileName)
-        self.saveTempFile or tools.removeFiles(fileNames)
+
+        concat, subtitlePath = True, None
+        if subtitleUrl:
+            # 存在字幕文件时，使用二进制合并以生成正确的时间戳
+            concat = False
+            subtitlePath = os.path.join(self.tempFilePath, fileName + tools.getSuffix(subtitleUrl))
+            self.downloader.directDownload(subtitleUrl, subtitlePath, headers)
+
+        tools.mergePartialVideos(fileNames, finalFileName, concat=concat, subtitlePath=subtitlePath)
+        if not self.saveTempFile:
+            tools.removeFiles(fileNames)
+            subtitleUrl and tools.removeFiles(subtitlePath)
         print('完成\n')
 
     # dash: 下载音频和视频并合并
@@ -92,10 +102,10 @@ class TaskDispatcher:
 
     def download(self, linksurl, fileName):
         fileName = tools.escapeFileName(fileName)
-        videoType, headers, audioUrls, videoUrls = api.preProcessUrl(linksurl)
+        videoType, headers, audioUrls, videoUrls, subtitleUrl = api.preProcessUrl(linksurl)
 
         if videoType == 'hls':
-            self._downloadHls(videoUrls, fileName, headers)
+            self._downloadHls(videoUrls, fileName, headers, subtitleUrl)
         elif videoType == 'dash':
             self._downloadDash(audioUrls, videoUrls, fileName, headers)
         elif videoType == 'partial':
