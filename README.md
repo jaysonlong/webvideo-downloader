@@ -13,6 +13,7 @@
 - [腾讯视频](https://v.qq.com/)
 - [芒果TV](https://www.mgtv.com/)
 - [WeTV](https://wetv.vip/)
+- [愛奇藝台灣站](https://tw.iqiyi.com//)
 
 此外，可选的 `CommonHlsDownloader` 脚本支持绝大部分基于 HLS 流式视频的网站，如 [LPL官网](https://lpl.qq.com/) 等。
 

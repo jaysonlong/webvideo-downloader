@@ -23,7 +23,7 @@ class TaskDispatcher:
         tools.mkdirIfNotExists(self.tempFilePath)
         tools.mkdirIfNotExists(self.videoFilePath)
         tools.checkFFmpeg()
-
+        tools.createRequestLogger(config.logPath, __file__)
 
 
     # hls: 下载所有ts分片并合并

@@ -41,22 +41,46 @@ def parseIqiyiMpd(content, headers = {}):
 
     return mediaUrls['audio'], mediaUrls['video']
 
+# iqiyi: 解析分段描述信息链接
+def parseIqiyiInfoUrls(urls, headers = {}):
+    print('共%d段视频，正在获取各段视频的真实链接' % len(urls))
+
+    videoUrls = []
+    for url in urls:
+        data = json.loads(tools.getText(url, headers, timeout=10))
+        videoUrls.append(data['l'])
+    return videoUrls
+
 def parseHls(url, headers = {}):
     content = tools.getText(url, headers)
     return tools.filterHlsUrls(content, url)
 
 def parseIqiyiUrl(url, headers = {}):
     data = json.loads(tools.getText(url, headers))
-    videos = data['data']['program']['video']
-    videos = list(filter(lambda each: each.get('m3u8'), videos))
-    content = videos[0]['m3u8']
+    program = data['data']['program']
+    if type(program) == list:
+        print('服务器返回错误，可能原因：愛奇藝台灣站需要使用代理下载(http_proxy/https_proxy)')
+        exit()
 
-    if content.startswith('#EXTM3U'):
-        videoType = 'hls'
-        audioUrls, videoUrls = [], tools.filterHlsUrls(content)
+    videos = program['video']
+    filterVideos = list(filter(lambda each: each.get('m3u8'), videos))
+
+    if len(filterVideos):
+        content = filterVideos[0]['m3u8']
+
+        if content.startswith('#EXTM3U'):
+            videoType = 'hls'
+            audioUrls, videoUrls = [], tools.filterHlsUrls(content)
+        else:
+            videoType = 'dash'
+            audioUrls, videoUrls = parseIqiyiMpd(content, headers)
     else:
-        videoType = 'dash'
-        audioUrls, videoUrls = parseIqiyiMpd(content, headers)
+        filterVideos = list(filter(lambda each: each.get('fs'), videos))
+        fsList = filterVideos[0]['fs']
+        basePath = data['data']['dd']
+        infoUrls = list(map(lambda each: basePath + each['l'], fsList))
+        videoType = 'partial'
+        audioUrls, videoUrls = [], parseIqiyiInfoUrls(infoUrls, headers)
     return videoType, audioUrls, videoUrls
 
 # 预处理油猴链接，返回解析后的url和所需请求头

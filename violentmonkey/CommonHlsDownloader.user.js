@@ -7,6 +7,7 @@
 // @exclude-match *://www.bilibili.com/video/*
 // @exclude-match *://www.bilibili.com/s/video/*
 // @exclude-match *://www.iqiyi.com/*.html
+// @exclude-match *://tw.iqiyi.com/*.html*
 // @exclude-match *://v.qq.com/x/cover/*
 // @exclude-match *://v.qq.com/x/page/*
 // @exclude-match *://wetv.vip/*
@@ -89,7 +90,7 @@ function prepareDownload(url) {
   }).then((result) => {
     if (result.value) {
       var payload = {
-        fileName: result.value[0],
+        fileName: result.value,
         linksurl: url,
         type: 'link',
       }
@@ -215,6 +216,12 @@ function prepare() {
     });
     $.addStyle('https://cdn.bootcdn.net/ajax/libs/font-awesome/4.0.0/css/font-awesome.min.css');
     $.addStyle(`
+      .swal2-container {
+        font-size: 18px;
+      }
+      .swal2-modal {
+        font-size: 1em;
+      }
       #dl-btn {
         z-index: 1000;
         position: fixed;
@@ -223,6 +230,7 @@ function prepare() {
         width: 50px;
         height: 50px;
         line-height: 50px;
+        font-size: 12px;
         border-radius: 50%;
         border: #fff solid 1.5px;
         box-shadow: 0 3px 10px rgb(48, 133, 214);

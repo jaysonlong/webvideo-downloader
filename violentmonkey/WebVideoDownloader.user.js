@@ -7,6 +7,7 @@
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
 // @match *://www.iqiyi.com/*.html*
+// @match *://tw.iqiyi.com/*.html*
 // @match *://v.qq.com/x/cover/*
 // @match *://v.qq.com/x/page/*
 // @match *://wetv.vip/*
@@ -38,9 +39,6 @@ var storage = {
   // 腾讯视频
   playinfoMethod: null,
   playinfoBody: null,
-
-  // wetv
-  getVinfoUrl: null,
 };
 
 var domains = ['bilibili.com', 'iqiyi.com', 'qq.com', 'wetv.vip', 'mgtv.com'];
@@ -110,7 +108,7 @@ var handler = {
 
   'wetv.vip': function() {
     jsonpHook('getvinfo?', wetv_parseResult, {
-      onMatch: url => storage.getVinfoUrl = url,
+      onMatch: url => storage.playinfoUrl = url,
     });
   },
 
@@ -218,10 +216,12 @@ function iqiyi_parseResult(rs) {
   $.logEmphasize('VideoInfo', rs);
 
   var videos = rs.data.program.video.filter(each => each.m3u8 != undefined);
+  if (!videos.length) {
+    videos = rs.data.program.video.filter(each => each.fs != undefined);
+  }
+
   if (videos.length) {
     var {
-      vid,
-      m3u8,
       vsize: size,
       ff: fileformat,
       scrsz: wh,
@@ -295,7 +295,7 @@ function wetv_parseResult(rs) {
 
   var tasks = rs.fl.fi.map(each => new Promise(resolve => {
     var { name: defn, cname: defDesc } = each;
-    var url = storage.getVinfoUrl.replace(/defn=[^&]*/, 'defn=' + defn);
+    var url = storage.playinfoUrl.replace(/defn=[^&]*/, 'defn=' + defn);
 
     $.jsonp(url).then(rs => {
       var data = wetv_parseVideoInfo(rs);
@@ -669,6 +669,12 @@ function prepare() {
     });
     $.addStyle('https://cdn.bootcdn.net/ajax/libs/font-awesome/4.0.0/css/font-awesome.min.css');
     $.addStyle(`
+      .swal2-container {
+        font-size: 18px;
+      }
+      .swal2-modal {
+        font-size: 1em;
+      }
       #dl-btn {
         z-index: 1000;
         position: fixed;
@@ -677,6 +683,7 @@ function prepare() {
         width: 50px;
         height: 50px;
         line-height: 50px;
+        font-size: 12px;
         border-radius: 50%;
         border: #fff solid 1.5px;
         box-shadow: 0 3px 10px rgb(48, 133, 214);

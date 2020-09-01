@@ -8,6 +8,7 @@ import shutil
 from pathlib import Path
 from urllib.parse import urlparse, unquote
 import xml.etree.ElementTree as ET
+import logging
 import requests
 import colorama
 
@@ -45,11 +46,26 @@ class XMLUtils:
         return node.findtext(clz._addns(xpath))
 
 
+reqLogger = None
 
 userAgent = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 " 
         + "(KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
 }
+
+def createRequestLogger(logPath, currFile, logFileName = 'trace.log'):
+    global reqLogger
+    reqLogger = logging.getLogger('request')
+    reqLogger.setLevel(logging.INFO)
+
+    logPath = toAbsolutePath(logPath, currFile)
+    mkdirIfNotExists(logPath)
+    logFileName = os.path.join(logPath, logFileName)
+
+    file_handler = logging.FileHandler(logFileName, mode='w')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    reqLogger.addHandler(file_handler)
 
 def mergeDict(*dicts):
     ret = {}
@@ -59,20 +75,27 @@ def mergeDict(*dicts):
     return ret
 
 def request(*args, **kargs):
-    kargs['timeout'] = kargs.get('timeout', 5)
+    kargs['timeout'] = kargs.get('timeout', 8)
     kargs['headers'] = mergeDict(userAgent, kargs.get('headers', {}))
+    reqLogger and reqLogger.info('%s %s' % (args, kargs))
 
-    response = requests.request(*args, **kargs)
+    try:
+        response = requests.request(*args, **kargs)
+    except Exception as e:
+        reqLogger and reqLogger.error('http request error: %s' % str(e))
+        raise e
+
     if response.status_code > 299:
+        reqLogger and reqLogger.error('http响应: %d错误' % response.status_code)
         raise Exception('http响应: %d错误' % response.status_code)
     return response
 
-def getText(url, headers = {}):
+def getText(url, headers = {}, **kargs):
     if not url.startswith('http'):
         # 读取本地文件
         with open(url) as f:
             return f.read()
-    response = request('GET', url, headers=headers)
+    response = request('GET', url, headers=headers, **kargs)
     return response.text
 
 def getFileSize(url, headers = {}):

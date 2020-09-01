@@ -2,3 +2,5 @@
 /videos
 __pycache__
 test.py
+logs/
+*.pyc
