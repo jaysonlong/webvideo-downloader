@@ -2,16 +2,7 @@
 // @name 通用hls下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.1
-// @exclude-match *://www.bilibili.com/*/play/*
-// @exclude-match *://www.bilibili.com/video/*
-// @exclude-match *://www.bilibili.com/s/video/*
-// @exclude-match *://www.iqiyi.com/*.html
-// @exclude-match *://tw.iqiyi.com/*.html*
-// @exclude-match *://v.qq.com/x/cover/*
-// @exclude-match *://v.qq.com/x/page/*
-// @exclude-match *://wetv.vip/*
-// @exclude-match *://www.mgtv.com/b/*
+// @version 1.2
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/draggabilly/2.3.0/draggabilly.pkgd.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js
@@ -26,30 +17,33 @@
 var storage = {
   serverAddr: '127.0.0.1:18888',
   downloadBtn: null,
-  downloadModal: null,
+  modalInfo: null,
 };
 
 prepare();
 
-// ajax拦截
-ajaxHook({
-  open: function([method, url], xhr) {
-    if (url.indexOf('.m3u8') > -1) {
-      $.logEmphasize('m3u8Url', url);
-      var html = `<a href="${url}" class="remote">点击下载或复制链接</a>`;
+setTimeout(() => {
+  if (unsafeWindow.webvideo_downloader_exist) return;
+  // ajax拦截
+  ajaxHook({
+    open: function([method, url], xhr) {
+      if (url.indexOf('.m3u8') > -1) {
+        $.logEmphasize('m3u8Url', url);
+        var html = `<a href="${url}" class="remote">点击下载或复制链接</a>`;
 
-      updateModal({
-        title: document.title,
-        content: html,
-      });
-    }
-  },
+        updateModal({
+          title: document.title,
+          content: html,
+        });
+      }
+    },
+  });
 });
 
 
 // 更新下载内容（设置模态框的标题和正文）
 function updateModal({title, content}) {
-  storage.downloadModal = {title, content};
+  storage.modalInfo = {title, content};
   if (storage.downloadBtn) return;
 
   storage.downloadBtn = $.create('div', {
@@ -60,8 +54,8 @@ function updateModal({title, content}) {
   var draggie = new Draggabilly(storage.downloadBtn);
   draggie.on('staticClick', e => {
     Swal.fire({
-      title: storage.downloadModal.title,
-      html: storage.downloadModal.content,
+      title: storage.modalInfo.title,
+      html: storage.modalInfo.content,
       customClass: {
         container: 'dl-modal',
         title: 'dl-modal-title',
@@ -86,7 +80,7 @@ function prepareDownload(url) {
     confirmButtonText: '<i class="fa fa-arrow-right"></i>',
     cancelButtonText: '<i class="fa fa-times"></i>',
     title: '输入文件名',
-    inputValue: storage.downloadModal.title,
+    inputValue: storage.modalInfo.title,
   }).then((result) => {
     if (result.value) {
       var payload = {

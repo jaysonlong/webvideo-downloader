@@ -2,12 +2,13 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.5
+// @version 1.6
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
 // @match *://www.iqiyi.com/*.html*
 // @match *://tw.iqiyi.com/*.html*
+// @match *://www.iq.com/play/*
 // @match *://v.qq.com/x/cover/*
 // @match *://v.qq.com/x/page/*
 // @match *://wetv.vip/*
@@ -30,7 +31,7 @@ var storage = {
 
   cbFn: {},
   downloadBtn: null,
-  downloadModal: null,
+  modalInfo: null,
   playinfoUrl: null,
 
   // bilibili
@@ -40,8 +41,6 @@ var storage = {
   playinfoMethod: null,
   playinfoBody: null,
 };
-
-var domains = ['bilibili.com', 'iqiyi.com', 'qq.com', 'wetv.vip', 'mgtv.com'];
 
 var handler = {
   'bilibili.com': function() {
@@ -69,6 +68,19 @@ var handler = {
   },
 
   'iqiyi.com': function() {
+    ajaxHook({
+      open: function([_, url]) {
+        if (url.indexOf('dash?') > 0) {
+          storage.playinfoUrl = url;
+          fetch(url, {
+            credentials: 'include'
+          }).then(resp => resp.json()).then(iqiyi_parseResult);
+        }
+      }
+    });
+  },
+
+  'iq.com': function() {
     ajaxHook({
       open: function([_, url]) {
         if (url.indexOf('dash?') > 0) {
@@ -118,7 +130,8 @@ var handler = {
 }
 
 prepare();
-domains.some(domain => {
+
+Object.keys(handler).some(domain => {
   if (location.href.indexOf(domain) != -1) {
     handler[domain]();
     return true;
@@ -328,8 +341,9 @@ function wetv_parseVideoInfo(vinfo) {
   if (url.indexOf('.m3u8') == -1) {
     url += ui.hls.pt;
   }
-  var srtUrl = vinfo.sfl.url;
-  url += '|' + srtUrl;
+  var srts = vinfo.sfl.fi.filter(each => each.url);
+  var srtsInfo = srts.map(each => each.name + '|' + each.url);
+  url += '|' + srtsInfo.join('|');
   var { vw: width, vh: height, fs: size } = vi;
   size = Math.floor(size / 1024 / 1024);
 
@@ -384,7 +398,7 @@ function mgtv_parseVideoInfo(rs) {
 
 // 准备下载信息
 function prepareDownload(url, multi) {
-  var queue = [{title:'输入文件名', inputValue: storage.downloadModal.title}];
+  var queue = [{title:'输入文件名', inputValue: storage.modalInfo.title}];
   multi && queue.push('输入首、尾P(空格分隔)或单P');
   Swal.mixin({
     input: 'text',
@@ -474,7 +488,7 @@ function wsCall(payload) {
 
 // 更新下载内容（设置模态框的标题和正文）
 function updateModal({title, content}) {
-  storage.downloadModal = {title, content};
+  storage.modalInfo = {title, content};
   if (storage.downloadBtn) return;
 
   storage.downloadBtn = $.create('div', {
@@ -485,8 +499,8 @@ function updateModal({title, content}) {
   var draggie = new Draggabilly(storage.downloadBtn);
   draggie.on('staticClick', e => {
     Swal.fire({
-      title: storage.downloadModal.title,
-      html: storage.downloadModal.content,
+      title: storage.modalInfo.title,
+      html: storage.modalInfo.content,
       customClass: {
         container: 'dl-modal',
         title: 'dl-modal-title',
@@ -570,6 +584,7 @@ function $(selector, filterFn = null) {
 
 // 初始化工作
 function prepare() {
+  unsafeWindow.webvideo_downloader_exist = true;
   document.originCreateElement = document.createElement;
 
   Object.assign($, {

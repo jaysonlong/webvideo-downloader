@@ -205,6 +205,25 @@ def filterHlsUrls(content, url = None):
         urls = list(map(lambda url: basePath + url, urls))
     return urls
 
+def tryFixSrtFile(srtFile):
+    with open(srtFile, 'r+', encoding="utf-8") as f:
+        content = f.read()
+
+        if not re.search(r'\r?\n\r?\n.+-->', content):
+            return
+
+        items = re.finditer(r'\r?\n.+-->', content)
+
+        rs = ''
+        lastPos = 0
+        for i, item in enumerate(items):
+            rs += content[lastPos:item.start()] + str(i+1) + item.group()
+            lastPos = item.end()
+
+        rs += content[lastPos:]
+        f.seek(0)
+        f.write(rs)
+
 def getArguments(*options):
     # kwargs['dest'] = 'dest'
     parser = argparse.ArgumentParser()
@@ -231,32 +250,17 @@ def mergePartialVideos(fileNames, fileName, concat = True, subtitlePath = None):
             f.write(text)
         
         extraArgs = ''
-        if subtitlePath:
-            extraArgs += ' -i "%s" -c:s mov_text ' % subtitlePath
         if fileName.endswith('.mp4'):
             extraArgs += ' -movflags faststart '
 
-        cmd = ('ffmpeg -safe 0 -f concat -i concat.txt %s -c:v copy -c:a copy ' + \
+        cmd = ('ffmpeg -safe 0 -f concat -i concat.txt %s -c copy ' + \
             '-bsf:a aac_adtstoasc -v fatal -y "%s"') % (extraArgs, fileName)
         os.system(cmd)
         # print(cmd)
         removeFiles('concat.txt')
     else:
         # 快速二进制合并，适用部分hls
-        if not subtitlePath:
-            mergeFiles(fileNames, fileName)
-        else:
-            tempFileName = fileName + '.tmp'
-            mergeFiles(fileNames, tempFileName)
-
-            extraArgs = ''
-            if fileName.endswith('.mp4'):
-                extraArgs += ' -movflags faststart '
-
-            cmd = ('ffmpeg -i "%s" -i "%s" -c:s mov_text %s -c:v copy -c:a copy ' + \
-                '-bsf:a aac_adtstoasc -v fatal -y "%s"') % (tempFileName, subtitlePath, extraArgs, fileName)
-            os.system(cmd)
-            removeFiles(tempFileName)
+        mergeFiles(fileNames, fileName)
 
 
 def mergeAudio2Video(audioNames, videoNames, fileName):
@@ -286,3 +290,24 @@ def mergeAudio2Video(audioNames, videoNames, fileName):
     isMultiAudio and removeFiles(audioName)
     isMultiVideo and removeFiles(videoName)
 
+def integrateSubtitles(subtitlesInfo, videoName):
+    print('正在集成字幕')
+
+    subtitleNames = list(map(lambda x: x[1], subtitlesInfo))
+    fileNames = [videoName] + subtitleNames
+    inputCmd = ' '.join(map(lambda x: ('-i "%s"' % x), fileNames))
+
+    mapCmd = '-map 0'
+    for i, (name, subtitleName) in enumerate(subtitlesInfo):
+        mapCmd += ' -map %d -metadata:s:s:%d title="%s"' % (i+1, i, name)
+
+    isMp4 = videoName.endswith('.mp4')
+    tempVideoName = videoName.rsplit('.', 1)[0] + ('.tmp.mp4' if isMp4 else '.mp4')
+    cmd = ('ffmpeg %s %s -c:v copy -c:a copy -c:s mov_text -movflags faststart ' + \
+        '-v fatal -y "%s"') % (inputCmd, mapCmd, tempVideoName)
+    # print(cmd)
+    os.system(cmd)
+    removeFiles(videoName)
+    targetFileName = videoName if isMp4 else tempVideoName
+    os.rename(tempVideoName, targetFileName)
+    return targetFileName
