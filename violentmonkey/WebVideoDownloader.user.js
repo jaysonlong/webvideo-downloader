@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.6.1
+// @version 1.6.2
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
@@ -100,8 +100,7 @@ var handler = {
         xhr.url = url;
       },
       send: ([body], xhr) => {
-        if (xhr.url.includes('qq.com/proxyhttp') && 
-          (body.includes('vinfoparam') || body.includes('vkeyparam'))) {
+        if (xhr.url.includes('qq.com/proxyhttp') && body.includes('vinfoparam')) {
           xhr.body = body;
         }
       },
@@ -265,8 +264,8 @@ function tencent_parseResult(rs) {
         method: storage.playinfoMethod,
       })
       .then(resp => resp.json())
-      .then(data => {
-        var rs = tencent_parseVideoInfo(data);
+      .then(async data => {
+        var rs = await tencent_parseVideoInfo(data);
         return Object.assign(rs, { defDesc });
       })
       .then(resolve);
@@ -289,13 +288,41 @@ function tencent_parseResult(rs) {
 }
 
 // 腾讯视频: 解析视频信息
-function tencent_parseVideoInfo(data) {
+async function tencent_parseVideoInfo(data) {
   var vinfo = JSON.parse(data.vinfo);
   var vi = vinfo.vl.vi[0];
   var ui = vi.ul.ui[0];
   var url = ui.url;
-  if (url.indexOf('.m3u8') == -1) {
-    url += ui.hls.pt;
+  if (!url.includes('.m3u8')) {
+    if (ui.hls) {
+      url += ui.hls.pt;
+    } else if (vi.cl.fc > 0) {
+      var fragCnt = vi.cl.fc;
+      var [vid, mname, suffix] = vi.fn.split('.');
+      var [_, defId, _] = vi.cl.ci[0].keyid.split('.');
+      var tasks = Array.apply(null, {length: fragCnt}).map(async (e, i) => {
+        var fname = `${vid}.${mname}.${i+1}.${suffix}`;
+        var body = JSON.parse(storage.playinfoBody);
+        body.buid = 'onlyvkey';
+        body.vkeyparam = `${body.vinfoparam}&format=${defId}&filename=${fname}`;
+        body.adparam = body.vinfoparam = undefined;
+
+        var fragUrl = await fetch(storage.playinfoUrl, {
+            body: JSON.stringify(body),
+            method: storage.playinfoMethod,
+          })
+          .then(resp => resp.json())
+          .then(async data => {
+            data = JSON.parse(data.vkey);
+            return `${url}${fname}?vkey=${data.key}`;
+          });
+        return fragUrl;
+      });
+      var fragUrls = await Promise.all(tasks);
+      url = fragUrls.join('|');
+    } else {
+      url += `${vi.fn}?vkey=${vi.fvkey}`;
+    }
   }
   var { vw: width, vh: height, fs: size } = vi;
   size = Math.floor(size / 1024 / 1024);
