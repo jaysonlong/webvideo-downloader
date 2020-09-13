@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.6
+// @version 1.6.1
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
@@ -450,7 +450,7 @@ function httpCall(payload) {
       method: "POST",
       url: 'http://' + storage.serverAddr,
       data: JSON.stringify(payload),
-      timeout: 1200,
+      timeout: 1000,
       onload: function(res) {
         if (res.response == 'success') {
           resolve('任务已创建');
