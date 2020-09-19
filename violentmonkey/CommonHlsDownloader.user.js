@@ -2,7 +2,7 @@
 // @name 通用hls下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.2.1
+// @version 1.2.2
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/draggabilly/2.3.0/draggabilly.pkgd.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js
@@ -212,6 +212,7 @@ function prepare() {
     $.addStyle(`
       .swal2-container {
         font-size: 18px;
+        z-index: 10000;
       }
       .swal2-modal {
         font-size: 1em;

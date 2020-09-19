@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.6.2
+// @version 1.6.3
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
@@ -259,7 +259,7 @@ function tencent_parseResult(rs) {
   var tasks = vinfo.fl.fi.map(each => new Promise(resolve => {
     var { name: defn, cname: defDesc } = each;
     var body = storage.playinfoBody.replace(/defn=[^&]*/, 'defn=' + defn);
-    fetch(storage.playinfoUrl, {
+    $.fetchWithRetry(storage.playinfoUrl, {
         body: body,
         method: storage.playinfoMethod,
       })
@@ -307,9 +307,10 @@ async function tencent_parseVideoInfo(data) {
         body.vkeyparam = `${body.vinfoparam}&format=${defId}&filename=${fname}`;
         body.adparam = body.vinfoparam = undefined;
 
-        var fragUrl = await fetch(storage.playinfoUrl, {
+        var fragUrl = await $.fetchWithRetry(storage.playinfoUrl, {
             body: JSON.stringify(body),
             method: storage.playinfoMethod,
+            timeout: 1000,
           })
           .then(resp => resp.json())
           .then(async data => {
@@ -666,6 +667,32 @@ function prepare() {
         };
       })
     },
+    fetchWithTimeout: function() {
+      var timeout = arguments[1] && arguments[1].timeout || 2000;
+      var fetchPromise = fetch(...arguments);
+      var timeoutPromise = new Promise(function(resolve, reject) {
+        setTimeout(() => reject(new Error('timeout')), timeout);
+      });
+      return Promise.race([
+           fetchPromise,
+           timeoutPromise
+      ]);
+    },
+    fetchWithRetry: async function() {
+      var maxRetry = arguments[1] && arguments[1].maxRetry || 10;
+      var times = 0;
+      var resp = null;
+
+      while (!resp && times <= maxRetry) {
+        try {
+          resp = await $.fetchWithTimeout(...arguments);
+        } catch(e) {
+          console.log("error", e);
+          times++;
+        }
+      }
+      return resp;
+    },
     waitForTitleChange: function(callback, timeout = 0) {
       var handled = false;
       var wrappedCb = () => handled || (handled = true) && callback();
@@ -713,6 +740,7 @@ function prepare() {
     $.addStyle(`
       .swal2-container {
         font-size: 18px;
+        z-index: 10000;
       }
       .swal2-modal {
         font-size: 1em;
