@@ -6,23 +6,33 @@
 
 ---
 
-**主要支持的视频网站：**
+## 支持的网站
 
-- [哔哩哔哩](https://www.bilibili.com/)（单P/多P）
-- [爱奇艺](https://www.iqiyi.com/)
-- [腾讯视频](https://v.qq.com/)
-- [芒果TV](https://www.mgtv.com/)
-- [WeTV](https://wetv.vip/)
-- [愛奇藝台灣站](https://tw.iqiyi.com/)
-- [爱奇艺国际站](https://www.iq.com/)
+| 站点                                | URL                                                    | 普通画质 | VIP专属 |
+| ------------------------------------- | ------------------------------------------------------ | -------- | ------- |
+| 哔哩哔哩（单P/多P）                   | [https://www.bilibili.com/](https://www.bilibili.com/) | ✓        | ✓       |
+| 爱奇艺     | [https://www.iqiyi.com/](https://www.iqiyi.com/)                       | ✓        | ✓       |
+| 腾讯视频         | [https://v.qq.com/](https://v.qq.com/)                          | ✓        | ✓       |
+| 芒果TV       | [https://www.mgtv.com/](https://www.mgtv.com/)                        | ✓        | ✓       |
+| WeTV             | [https://wetv.vip/](https://wetv.vip/)                              | ✓        | ✓ |
+| 愛奇藝台灣站 | [https://tw.iqiyi.com/](https://tw.iqiyi.com/)                  | ✓        | ✓       |
+| 爱奇艺国际站   | [https://www.iq.com/](https://www.iq.com/)                    | ✓        | untested |
 
-此外，可选的 `CommonHlsDownloader` 脚本支持绝大部分基于 HLS 流式视频的网站，如 [LPL官网](https://lpl.qq.com/) 等。
+此外，可选的 [CommonHlsDownloader](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/CommonHlsDownloader.user.js) 脚本支持绝大部分基于 HLS 流式视频的网站，如 [LPL官网](https://lpl.qq.com/) 等。
 
-**注意：** 部分网站（如 [WeTV](https://wetv.vip/)，[爱奇艺国际站](https://www.iq.com/)）为外挂字幕文件，该类视频下载后字幕文件已内置到视频中，可使用支持内置字幕的播放器播放，如 `PotPlayer`，`VLC Player` 等。
 
----
 
-**本项目支持1080p蓝光画质、VIP专享、VIP点播、付费视频的下载，前提为你是VIP/用了券/付了费。**
+## 下载特性
+
+### 基本特性
+
+- 跨平台支持（Windows /Linux/Mac）
+- 多线程下载（单文件分段/多文件并行）
+- 字幕下载和集成（集成字幕的视频需使用支持字幕的播放器播放，如 `PotPlayer`，`VLC Player` 等）
+
+### 关于VIP
+
+本项目支持**1080p蓝光画质、VIP专享、VIP点播、付费视频**的下载，前提是你是VIP/用了券/付了费。
 
 > **What you can watch determined what you can download.**
 >
@@ -36,14 +46,15 @@
 
 ### Violentmonkey
 
-1. Chrome或其他浏览器安装 [Violenmonkey](https://violentmonkey.github.io/) 暴力猴插件，或者 [Tampermonkey](http://www.tampermonkey.net/) 插件
-
-2. 安装 `violentmonkey` 目录中的 [WebVideoDownloader.user.js](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js) 脚本。直接点击以下链接即可安装
+1. 浏览器安装 [Violenmonkey](https://violentmonkey.github.io/) 暴力猴插件或 [Tampermonkey](http://www.tampermonkey.net/) 插件
 
 - [暴力猴（Chrome）](https://chrome.google.com/webstore/detail/violentmonkey/jinjaccalgkegednnccohejagnlnfdag)
+
+2. 安装 `violentmonkey` 目录中的 [WebVideoDownloader.user.js](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js) 脚本
+
 - [WebVideoDownloader 脚本](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js)
-- [广告拦截器](https://chrome.google.com/webstore/detail/adguard-adblocker/bgnkhhnnamicmpeenaelnjfhikgbkllg)（可选。存在广告时，脚本**可能**会延迟到广告即将结束时才开始解析）
 - [CommonHlsDownloader 脚本](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/CommonHlsDownloader.user.js)（可选。通用 HLS 下载脚本，作用于**所有**使用 HLS 的网站）
+- [广告拦截器](https://chrome.google.com/webstore/detail/adguard-adblocker/bgnkhhnnamicmpeenaelnjfhikgbkllg)（可选。存在广告时，脚本**可能**会延迟到广告即将结束时才开始解析）
 
 3. 打开支持的视频网站，点击某个视频
 
@@ -55,30 +66,28 @@
 
 > 本下载程序使用 [FFmpeg](https://ffmpeg.org/) 作为视频处理工具，windows 版本已内置到仓库，linux/mac 下需自行安装。
 
-远程调用下载器（支持单视频下载、哔哩哔哩多P下载和 MSE 视频流导出）
+#### 运行脚本（二选一）
 
 ```bash
+# 选项1: 用于点击链接远程调用下载
 python daemon.py
-```
 
-手动复制链接粘贴（支持单视频下载、哔哩哔哩多P下载和本地 m3u8 文件解析下载）
-
-```bash
+# 选项2: 用于手动复制链接下载
 python common.py
 ```
 
-可选命令行参数
+#### 可选命令行参数
 
-```
-usage: daemon.py / common.py [-h] [-s] [-t:h N] [-t:f N] [-f N]
+```bash
+usage: daemon.py / common.py [-h] [-s] [-t:h N] [-t:f N] [-f N] [-d]
 
 optional arguments:
   -h, --help  show this help message and exit
-  -s          if set, will not delete the temp files
-  -t:h N      the thread count of hls download, default 16
-  -t:f N      the thread count of fragments download, default 16
-  -f N        the fragments count of each file, default 0 using the thread
-              count
+  -s          if set, will save the temp files
+  -t:h N      the thread count of hls download, default 8
+  -t:f N      the thread count of fragments download, default 8
+  -f N        the fragments count of each file, default 0 using the thread count
+  -d          debug mode, log more info and save the temp files (ignore -s)
 ```
 
 
@@ -116,7 +125,7 @@ optional arguments:
 
 #### 变更
 
-- 暴力猴脚本重构 & UI界面重写
+- 暴力猴脚本重构 & 界面重写
 
 ### [v1.2] - 2020-06-18
 

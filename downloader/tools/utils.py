@@ -15,6 +15,16 @@ import colorama
 colorama.init(autoreset=True)
 
 
+debug = False
+
+reqLogger = None
+
+userAgent = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 " 
+        + "(KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
+}
+
+
 # xml工具，自动补全namespace
 class XMLUtils:
     @classmethod
@@ -46,19 +56,16 @@ class XMLUtils:
         return node.findtext(clz._addns(xpath))
 
 
-reqLogger = None
+def setupDebug(val):
+    global debug
+    debug = val
 
-userAgent = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 " 
-        + "(KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36",
-}
-
-def createRequestLogger(logPath, currFile, logFileName = 'trace.log'):
+def setupRequestLogger(logPath, logFileName = 'trace.log'):
     global reqLogger
     reqLogger = logging.getLogger('request')
     reqLogger.setLevel(logging.INFO)
 
-    logPath = toAbsolutePath(logPath, currFile)
+    logPath = realPath(logPath)
     mkdirIfNotExists(logPath)
     logFileName = os.path.join(logPath, logFileName)
 
@@ -79,15 +86,19 @@ def request(*args, **kargs):
     kargs['headers'] = mergeDict(userAgent, kargs.get('headers', {}))
     reqLogger and reqLogger.info('%s %s' % (args, kargs))
 
+    method, url = args[:2]
+
     try:
         response = requests.request(*args, **kargs)
     except Exception as e:
-        reqLogger and reqLogger.error('http request error: %s' % str(e))
+        reqLogger and reqLogger.error('%s %s error: %s' % (method, url, str(e)))
         raise e
 
     if response.status_code > 299:
-        reqLogger and reqLogger.error('http响应: %d错误' % response.status_code)
-        raise Exception('http响应: %d错误' % response.status_code)
+        reqLogger and reqLogger.error('%s %s http响应: %d错误' \
+            % (method, url, response.status_code))
+        raise Exception('%s %s http响应: %d错误' \
+            % (method, url, response.status_code))
     return response
 
 def getText(url, headers = {}, **kargs):
@@ -101,7 +112,6 @@ def getText(url, headers = {}, **kargs):
 def getFileSize(url, headers = {}):
     response = request("GET", url, headers=headers, stream=True)
     return int(response.headers['Content-Length'])
-
 
 
 def escapeFileName(fileName):
@@ -151,13 +161,12 @@ def generateFileNames(urls, baseFileName):
             fileNames.append(fileName)
         return fileNames
 
-def toAbsolutePath(path, currFile):
-    path = str(Path(path))
-    if path == str(Path(path).absolute()):
-        return path
-    else:
-        scriptPath = os.path.split(os.path.abspath(currFile))[0]
-        return os.path.join(scriptPath, str(Path(path)))
+def realPath(path):
+    path = Path(sys.path[0]).joinpath(path)
+    return os.path.realpath(str(path))
+
+def join(*args):
+    return os.path.realpath(os.path.join(*args))
 
 def mkdirIfNotExists(path):
     os.path.exists(path) or os.makedirs(path)
@@ -198,7 +207,7 @@ def formatTime(value):
         return '%2dmin%02ds' % (value // 60, value % 60)
  
 def filterHlsUrls(content, url = None):
-    urls = re.findall(r'\S+\.ts\S*', content)
+    urls = re.findall(r'[^#"\s]+\.(?:ts|mp4)[^"\s]*', content, re.MULTILINE)
 
     if len(urls) > 0 and not urls[0].startswith('http'):
         basePath = getBasePath(url)
@@ -243,21 +252,27 @@ def checkFFmpeg():
 def mergePartialVideos(fileNames, fileName, concat = True, subtitlePath = None):
     print('正在合并视频')
 
+    # 使用concat demuxer合并，只需编码相同无需格式相同，适应范围更广
     if concat:
-        # 使用concat demuxer合并，只需编码相同无需格式相同，适应范围更广
+        concatFile = join(os.path.dirname(fileName), 'concat.txt')
+
         text = "file '" + ("'\nfile '".join(fileNames)) + "'" 
-        with open('concat.txt', 'w') as f:
+        with open(concatFile, 'w') as f:
             f.write(text)
         
         extraArgs = ''
         if fileName.endswith('.mp4'):
             extraArgs += ' -movflags faststart '
+        logLevel = 'info' if debug else 'fatal'
 
-        cmd = ('ffmpeg -safe 0 -f concat -i concat.txt %s -c copy ' + \
-            '-bsf:a aac_adtstoasc -v fatal -y "%s"') % (extraArgs, fileName)
+        cmd = ('ffmpeg -safe 0 -f concat -i %s -c copy %s -bsf:a aac_adtstoasc ' \
+            + '-v %s -y "%s"') % (concatFile, extraArgs, logLevel, fileName)
         os.system(cmd)
-        # print(cmd)
-        removeFiles('concat.txt')
+
+        if debug:
+            print('\nffmpeg command:', cmd)
+        else:
+            removeFiles(concatFile)
     else:
         # 快速二进制合并，适用部分hls
         mergeFiles(fileNames, fileName)
@@ -280,15 +295,18 @@ def mergeAudio2Video(audioNames, videoNames, fileName):
 
     extraArgs = ''
     if fileName.endswith('.mp4'):
-        extraArgs += ' -movflags faststart'
+        extraArgs += ' -movflags faststart '
+    logLevel = 'info' if debug else 'fatal'
 
-    cmd = 'ffmpeg -i "%s" -i "%s" -c:v copy -c:a copy %s -v fatal -y "%s"' \
-        % (audioName, videoName, extraArgs, fileName)
-    # print(cmd)
+    cmd = 'ffmpeg -i "%s" -i "%s" -c:v copy -c:a copy %s -v %s -y "%s"' \
+        % (audioName, videoName, extraArgs, logLevel, fileName)
     os.system(cmd)
 
-    isMultiAudio and removeFiles(audioName)
-    isMultiVideo and removeFiles(videoName)
+    if debug:
+        print('\nffmpeg command:', cmd)
+    else:
+        isMultiAudio and removeFiles(audioName)
+        isMultiVideo and removeFiles(videoName)
 
 def integrateSubtitles(subtitlesInfo, videoName):
     print('正在集成字幕')
@@ -296,18 +314,24 @@ def integrateSubtitles(subtitlesInfo, videoName):
     subtitleNames = list(map(lambda x: x[1], subtitlesInfo))
     fileNames = [videoName] + subtitleNames
     inputCmd = ' '.join(map(lambda x: ('-i "%s"' % x), fileNames))
-
     mapCmd = '-map 0'
     for i, (name, subtitleName) in enumerate(subtitlesInfo):
         mapCmd += ' -map %d -metadata:s:s:%d title="%s"' % (i+1, i, name)
 
     isMp4 = videoName.endswith('.mp4')
     tempVideoName = videoName.rsplit('.', 1)[0] + ('.tmp.mp4' if isMp4 else '.mp4')
+    logLevel = 'info' if debug else 'fatal'
+
     cmd = ('ffmpeg %s %s -c:v copy -c:a copy -c:s mov_text -movflags faststart ' + \
-        '-v fatal -y "%s"') % (inputCmd, mapCmd, tempVideoName)
-    # print(cmd)
+        '-v %s -y "%s"') % (inputCmd, mapCmd, logLevel, tempVideoName)
     os.system(cmd)
-    removeFiles(videoName)
-    targetFileName = videoName if isMp4 else tempVideoName
-    os.rename(tempVideoName, targetFileName)
+
+    targetFileName = tempVideoName
+
+    if debug:
+        print('\nffmpeg command:', cmd)
+    else:
+        removeFiles(videoName)
+        targetFileName = videoName if isMp4 else tempVideoName
+        os.rename(tempVideoName, targetFileName)
     return targetFileName

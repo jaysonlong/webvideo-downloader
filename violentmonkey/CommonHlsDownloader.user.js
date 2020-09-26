@@ -2,7 +2,7 @@
 // @name 通用hls下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.2.2
+// @version 1.2.3
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/draggabilly/2.3.0/draggabilly.pkgd.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js
@@ -27,7 +27,7 @@ setTimeout(() => {
   // ajax拦截
   ajaxHook({
     open: function([method, url], xhr) {
-      if (url.indexOf('.m3u8') > -1) {
+      if (url.search(/\.m3u8(\?|$)/) > -1) {
         $.logEmphasize('m3u8Url', url);
         var html = `<a href="${url}" class="remote">点击下载或复制链接</a>`;
 

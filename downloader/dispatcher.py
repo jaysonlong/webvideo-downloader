@@ -14,8 +14,8 @@ class TaskDispatcher:
         self.hlsThreadCnt = config.hlsThreadCnt
         self.fragThreadCnt = config.fragThreadCnt
         self.fragmentCnt = config.fragmentCnt
-        self.tempFilePath = tools.toAbsolutePath(config.tempFilePath, __file__)
-        self.videoFilePath = tools.toAbsolutePath(config.videoFilePath, __file__)
+        self.tempFilePath = tools.realPath(config.tempFilePath)
+        self.videoFilePath = tools.realPath(config.videoFilePath)
 
         self.downloader = WebDownloader(self.saveTempFile)
         self.task = None
@@ -23,16 +23,17 @@ class TaskDispatcher:
         tools.mkdirIfNotExists(self.tempFilePath)
         tools.mkdirIfNotExists(self.videoFilePath)
         tools.checkFFmpeg()
-        tools.createRequestLogger(config.logPath, __file__)
+        tools.setupRequestLogger(config.logPath)
+        tools.setupDebug(config.debug)
 
 
     # hls: 下载所有ts分片并合并
     def _downloadHls(self, urls, fileName, headers = {}, concat = True):
         print("-- dispatcher/downloadHls")
 
-        tempFileBase = os.path.join(self.tempFilePath, fileName)
+        tempFileBase = tools.join(self.tempFilePath, fileName)
         fileNames = tools.generateFileNames(urls, tempFileBase)
-        targetFileName = os.path.join(self.videoFilePath, fileName + '.mp4')
+        targetFileName = tools.join(self.videoFilePath, fileName + '.mp4')
 
         self.downloader.downloadAll(urls, fileNames, headers, self.hlsThreadCnt)
         tools.mergePartialVideos(fileNames, targetFileName, concat=concat)
@@ -44,11 +45,11 @@ class TaskDispatcher:
     def _downloadDash(self, audioUrls, videoUrls, fileName, headers = {}):
         print("-- dispatcher/downloadDash")
 
-        tempAudioBase = os.path.join(self.tempFilePath, fileName + '.audio')
-        tempVideoBase = os.path.join(self.tempFilePath, fileName + '.video')
+        tempAudioBase = tools.join(self.tempFilePath, fileName + '.audio')
+        tempVideoBase = tools.join(self.tempFilePath, fileName + '.video')
         audioNames = tools.generateFileNames(audioUrls, tempAudioBase)
         videoNames = tools.generateFileNames(videoUrls, tempVideoBase)
-        targetFileName = os.path.join(self.videoFilePath, fileName + '.mp4')
+        targetFileName = tools.join(self.videoFilePath, fileName + '.mp4')
 
         self.downloader.multiThreadDownloadAll(audioUrls, audioNames, headers, \
             self.fragThreadCnt, self.fragmentCnt)
@@ -63,10 +64,10 @@ class TaskDispatcher:
     def _downloadPartialVideos(self, urls, fileName, headers = {}):
         print("-- dispatcher/downloadPartialVideos")
 
-        tempFileBase = os.path.join(self.tempFilePath, fileName)
+        tempFileBase = tools.join(self.tempFilePath, fileName)
         fileNames = tools.generateFileNames(urls, tempFileBase)
         suffix = tools.getSuffix(urls[0])
-        targetFileName = os.path.join(self.videoFilePath, fileName + suffix)
+        targetFileName = tools.join(self.videoFilePath, fileName + suffix)
 
         for i, url in enumerate(urls):
             self.downloader.multiThreadDownload(url, fileNames[i], headers, \
@@ -80,9 +81,9 @@ class TaskDispatcher:
     def handleStream(self, fileName, audioFormat, videoFormat, **desc):
         print("-- dispatcher/handleStream")
 
-        audioName = os.path.join(self.tempFilePath, fileName + '.audio' + audioFormat)
-        videoName = os.path.join(self.tempFilePath, fileName + '.video' + videoFormat)
-        targetFileName = os.path.join(self.videoFilePath, fileName + '.mp4')
+        audioName = tools.join(self.tempFilePath, fileName + '.audio' + audioFormat)
+        videoName = tools.join(self.tempFilePath, fileName + '.video' + videoFormat)
+        targetFileName = tools.join(self.videoFilePath, fileName + '.mp4')
 
         self.downloader.saveStream(audioName, videoName, **desc)
         tools.mergeAudio2Video([audioName], [videoName], fileName)
@@ -98,7 +99,7 @@ class TaskDispatcher:
 
         for name, url in subtitles:
             subtitleUrls.append(url)
-            subtitleName = os.path.join(self.tempFilePath, '%s_%s%s' % \
+            subtitleName = tools.join(self.tempFilePath, '%s_%s%s' % \
                 (fileName, name, tools.getSuffix(url)))
             subtitleNames.append(subtitleName)
             subtitlesInfo.append((name, subtitleName))
