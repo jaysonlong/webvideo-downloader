@@ -16,11 +16,9 @@
 | 芒果TV       | [https://www.mgtv.com/](https://www.mgtv.com/)                        | ✓        | ✓       |
 | WeTV             | [https://wetv.vip/](https://wetv.vip/)                              | ✓        | ✓ |
 | 愛奇藝台灣站 | [https://tw.iqiyi.com/](https://tw.iqiyi.com/)                  | ✓        | ✓       |
-| 爱奇艺国际站   | [https://www.iq.com/](https://www.iq.com/)                    | ✓        | untested |
+| 爱奇艺国际站   | [https://www.iq.com/](https://www.iq.com/)                    | ✓        | ✓       |
 
 此外，可选的 [CommonHlsDownloader](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/CommonHlsDownloader.user.js) 脚本支持绝大部分基于 HLS 流式视频的网站，如 [LPL官网](https://lpl.qq.com/) 等。
-
-
 
 ## 下载特性
 
@@ -40,9 +38,11 @@
 
 
 
+
+
 ## 🔨 快速开始
 
-本项目分为两部分，**violentmonkey** 脚本用于在浏览器中提取视频链接，**downloader** 程序负责视频文件的下载与合并。
+本项目分为两部分，**violentmonkey** 脚本用于浏览器中提取视频链接，**downloader** 程序用于下载、合并视频。
 
 ### Violentmonkey
 
@@ -56,11 +56,10 @@
 - [CommonHlsDownloader 脚本](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/CommonHlsDownloader.user.js)（可选。通用 HLS 下载脚本，作用于**所有**使用 HLS 的网站）
 - [广告拦截器](https://chrome.google.com/webstore/detail/adguard-adblocker/bgnkhhnnamicmpeenaelnjfhikgbkllg)（可选。存在广告时，脚本**可能**会延迟到广告即将结束时才开始解析）
 
-3. 打开支持的视频网站，点击某个视频
-
-4. 网页自动弹出下载按钮，点击打开对话框，然后点击链接远程创建下载任务，或复制链接后手动粘贴下载
+3. 访问视频网站并点击某个视频，网页将自动弹出下载按钮，点击打开对话框，然后点击链接远程创建下载任务，或复制链接后手动粘贴到命令行下载
 
    ![bilibili](img/bilibili.gif)
+
 
 ### Downloader
 

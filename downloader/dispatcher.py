@@ -114,9 +114,9 @@ class TaskDispatcher:
         return targetFileName
 
 
-    def download(self, linksurl, fileName):
+    def download(self, url, fileName, data = None):
         fileName = tools.escapeFileName(fileName)
-        videoType, headers, audioUrls, videoUrls, subtitles = api.parseSingleUrl(linksurl)
+        videoType, headers, audioUrls, videoUrls, subtitles = api.parseSingleUrl(url, data)
 
         if audioUrls:
             print('匹配到%d段音频，%d段视频，开始下载' % (len(audioUrls), len(videoUrls)))
@@ -140,8 +140,8 @@ class TaskDispatcher:
         print('完成\n')
 
 
-    def downloadMultiParts(self, linksurl, baseFileName, pRange):
-        startP, endP, allPartInfo = api.parseMultiPartUrl(linksurl, pRange)
+    def downloadMultiParts(self, url, baseFileName, pRange):
+        startP, endP, allPartInfo = api.parseMultiPartUrl(url, pRange)
 
         print('准备下载第%d-%dP\n' % (startP, endP))
 
@@ -158,11 +158,12 @@ class TaskDispatcher:
 
         try:
             if task['type'] == 'link':
-                linksurl, fileName = task['linksurl'], task['fileName']
+                url, fileName = task['url'], task['fileName']
+                data = task.get('data')
                 if task.get('pRange'):
-                    self.downloadMultiParts(linksurl, fileName, task['pRange'])
+                    self.downloadMultiParts(url, fileName, task['pRange'])
                 else:
-                    self.download(linksurl, fileName)
+                    self.download(url, fileName, data)
             elif task['type'] == 'stream':
                 self.handleStream(**task)
         except Exception as e:

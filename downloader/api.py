@@ -21,6 +21,10 @@ def getHeaders(url):
         headers['referer'] = 'https://www.mgtv.com/'
     return headers
 
+def parseHlsUrl(url, headers = {}):
+    content = tools.getText(url, headers)
+    return tools.filterHlsUrls(content, url)
+
 # iqiyi: 解析mpd文件
 def parseIqiyiMpd(content, headers = {}):
     mediaUrls = {
@@ -52,11 +56,7 @@ def parseIqiyiInfoUrls(urls, headers = {}):
         videoUrls.append(data['l'])
     return videoUrls
 
-def parseHls(url, headers = {}):
-    content = tools.getText(url, headers)
-    return tools.filterHlsUrls(content, url)
-
-def parseIqiyiUrl(url, headers = {}):
+def parseIqiyiUrl(url, realData, headers = {}):
     data = json.loads(tools.getText(url, headers))
     program = data['data']['program']
     if type(program) == list:
@@ -67,7 +67,7 @@ def parseIqiyiUrl(url, headers = {}):
     filterVideos = list(filter(lambda each: each.get('m3u8'), program['video']))
 
     if len(filterVideos):
-        content = filterVideos[0]['m3u8']
+        content = realData or filterVideos[0]['m3u8']
 
         if content.startswith('#EXTM3U'):
             videoType = 'hls'
@@ -90,8 +90,9 @@ def parseIqiyiUrl(url, headers = {}):
         subtitles = [ (srt.get('_name', 'default'), basePath + srt['srt']) for srt in srts ]
     return videoType, audioUrls, videoUrls, subtitles
 
+
 # 解析油猴链接，返回解析后的url和所需请求头
-def parseSingleUrl(url):
+def parseSingleUrl(url, realData = None):
     urls = url.split('|')
 
     isBilibili = url.find('bili') > 0 or url.count('.m4s') == 2
@@ -106,20 +107,22 @@ def parseSingleUrl(url):
     if url.find('.m3u8') > 0:
         videoType = 'hls'
         if len(urls) == 1:
-            videoUrls = parseHls(url, headers)
+            videoUrls = parseHlsUrl(url, headers)
         else:
-            videoUrls = parseHls(urls[0], headers)
+            videoUrls = parseHlsUrl(urls[0], headers)
             subtitles = [ (unquote(urls[i*2+1]), urls[i*2+2]) for i in range(len(urls)//2) ]
     elif isBilibili and url.find('.m4s') > 0:
         videoType = 'dash'
         audioUrls, videoUrls = urls[:1], urls[1:]
     elif isIqiyi:
-        videoType, audioUrls, videoUrls, subtitles = parseIqiyiUrl(url, headers)
+        videoType, audioUrls, videoUrls, subtitles = parseIqiyiUrl(url, realData, headers)
     else:
         videoType = 'partial'
         videoUrls = urls
 
     return videoType, headers, audioUrls, videoUrls, subtitles
+
+
 
 
 # bilibili: 获取所有分P信息

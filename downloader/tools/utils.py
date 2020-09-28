@@ -319,19 +319,17 @@ def integrateSubtitles(subtitlesInfo, videoName):
         mapCmd += ' -map %d -metadata:s:s:%d title="%s"' % (i+1, i, name)
 
     isMp4 = videoName.endswith('.mp4')
-    tempVideoName = videoName.rsplit('.', 1)[0] + ('.tmp.mp4' if isMp4 else '.mp4')
+    tempVideoName = videoName.rsplit('.', 1)[0] + '.srt.mp4'
+    targetFileName = videoName if isMp4 else (videoName.rsplit('.', 1)[0] + '.mp4')
     logLevel = 'info' if debug else 'fatal'
 
     cmd = ('ffmpeg %s %s -c:v copy -c:a copy -c:s mov_text -movflags faststart ' + \
         '-v %s -y "%s"') % (inputCmd, mapCmd, logLevel, tempVideoName)
     os.system(cmd)
 
-    targetFileName = tempVideoName
-
     if debug:
         print('\nffmpeg command:', cmd)
     else:
         removeFiles(videoName)
-        targetFileName = videoName if isMp4 else tempVideoName
         os.rename(tempVideoName, targetFileName)
     return targetFileName

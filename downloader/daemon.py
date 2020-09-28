@@ -16,7 +16,7 @@ dataCacheSize = 10
 def downloadLoop():
     while True:
         task = taskQueue.get()
-        print('Handle: %s' % tools.stringify(task))
+        print('Handle: "%s"' % task['fileName'])
         taskDispatcher.dispatch(**task)
 
 
@@ -29,7 +29,7 @@ class DownloadServer(WebServer):
         try:
             body = client.rfile.read(int(client.headers['Content-Length']))
             task = json.loads(body.decode('utf-8'))
-            print('\n\nReceive: %s\n' % tools.stringify(task))
+            self.printWithoutData(task)
             taskQueue.put(task)
             tools.normalResponse(client, "success")
         except Exception as e:
@@ -44,7 +44,7 @@ class DownloadServer(WebServer):
                 task = json.loads(msg.decode('utf-8'))
                 taskQueue.put(task)
                 client.task = task
-                print('\n\nReceive: %s\n' % tools.stringify(task))
+                self.printWithoutData(task)
 
                 if task['type'] == 'stream':
                     client.status = self.IN_TRANSIT
@@ -66,6 +66,12 @@ class DownloadServer(WebServer):
     def client_left(self, client):
         if client.task and client.task.get('type') == 'stream':
             client.task['dataQueue'].put(CLIENT_CLOSE_EXCEPTION)
+
+    def printWithoutData(self, task):
+        copyTask = {key: task[key] for key in task}
+        if copyTask.get('data'):
+            copyTask['data'] = '...'
+        print('\n\nReceive: %s\n' % tools.stringify(copyTask))
 
 def main(port=18888):
     t = threading.Thread(target=downloadLoop, daemon=True)
