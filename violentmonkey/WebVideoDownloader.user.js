@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.6.4
+// @version 1.6.5
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
@@ -436,7 +436,7 @@ function prepareDownload(ele) {
       var payload = {
         fileName: result.value[0],
         pRange: result.value[1],
-        url: url,
+        linksurl: url,
         data: data,
         type: 'link',
       }

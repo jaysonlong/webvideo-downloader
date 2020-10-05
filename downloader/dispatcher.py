@@ -158,7 +158,7 @@ class TaskDispatcher:
 
         try:
             if task['type'] == 'link':
-                url, fileName = task['url'], task['fileName']
+                url, fileName = task.get('linksurl') or task['url'], task['fileName']
                 data = task.get('data')
                 if task.get('pRange'):
                     self.downloadMultiParts(url, fileName, task['pRange'])
