@@ -104,7 +104,7 @@ def request(*args, **kargs):
 def getText(url, headers = {}, **kargs):
     if not url.startswith('http'):
         # 读取本地文件
-        with open(url) as f:
+        with open(url, 'r', encoding="utf-8") as f:
             return f.read()
     response = request('GET', url, headers=headers, **kargs)
     return response.text
@@ -257,7 +257,7 @@ def mergePartialVideos(fileNames, fileName, concat = True, subtitlePath = None):
         concatFile = join(os.path.dirname(fileName), 'concat.txt')
 
         text = "file '" + ("'\nfile '".join(fileNames)) + "'" 
-        with open(concatFile, 'w') as f:
+        with open(concatFile, 'w', encoding="utf-8") as f:
             f.write(text)
         
         extraArgs = ''

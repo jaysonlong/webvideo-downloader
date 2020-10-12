@@ -89,7 +89,7 @@ class TaskDispatcher:
         tools.mergeAudio2Video([audioName], [videoName], fileName)
 
         self.saveTempFile or tools.removeFiles([audioName, videoName])
-        print('完成\n')
+        print('Finish.\n')
         return targetFileName
 
     # 下载弹幕并集成到视频文件
@@ -137,7 +137,7 @@ class TaskDispatcher:
             print('匹配到%d个字幕，开始下载' % len(subtitles))
             self.handleSubtitles(subtitles, fileName, targetFileName, headers)
 
-        print('完成\n')
+        print('Finish.\n')
 
 
     def downloadMultiParts(self, url, baseFileName, pRange):
