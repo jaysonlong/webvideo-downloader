@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.6.5
+// @version 1.6.6
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
@@ -81,7 +81,11 @@ var handler = {
     });
   },
 
-  'iq.com': () => handler['iqiyi.com'](),
+  'iq.com': function() {
+    // 禁用wasm，防止字幕加密
+    unsafeWindow.WebAssembly = undefined;
+    handler['iqiyi.com']();
+  },
 
   'qq.com': function() {
     ajaxHook({
