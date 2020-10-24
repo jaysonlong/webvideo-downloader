@@ -1,4 +1,7 @@
 # -*- coding:utf-8 -*-
+import os
+os.environ['PATH']=os.environ['PATH']+";"+os.path.abspath(os.path.dirname(__file__))
+
 from dispatcher import TaskDispatcher
 
 

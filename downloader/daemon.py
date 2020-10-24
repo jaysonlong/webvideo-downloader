@@ -2,6 +2,8 @@
 import json
 import threading
 import queue
+import os
+os.environ['PATH']=os.environ['PATH']+";"+os.path.abspath(os.path.dirname(__file__))
 from dispatcher import TaskDispatcher
 import tools
 from tools import WebServer, CLIENT_CLOSE_EXCEPTION
