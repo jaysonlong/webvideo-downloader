@@ -52,7 +52,7 @@ class WebDownloader:
 
     historySize = 5
     chunkSize = 1024 * 30
-    barLength = 50
+    barLength = 40
 
     def __init__(self, saveTempFile = False):
         self.saveTempFile = saveTempFile

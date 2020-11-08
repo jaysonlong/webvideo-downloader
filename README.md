@@ -6,6 +6,15 @@
 
 ---
 
+## 目录
+
+- [支持的网站](#支持的网站)
+- [功能特性](#功能特性)
+- [快速开始](#快速开始)
+  - [安装](#安装)
+  - [运行](#运行)
+- [更新日志](#更新日志)
+
 ## 支持的网站
 
 | 站点                                | URL                                                    | 普通画质 | VIP专属 |
@@ -20,11 +29,11 @@
 
 此外，可选的 [CommonHlsDownloader](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/CommonHlsDownloader.user.js) 脚本支持绝大部分基于 HLS 流式视频的网站，如 [LPL官网](https://lpl.qq.com/) 等。
 
-## 下载特性
+## 功能特性
 
-### 基本特性
+### 下载特性
 
-- 跨平台支持（Windows /Linux/Mac）
+- 跨平台支持（Windows/Linux/Mac）
 - 多线程下载（单文件分段/多文件并行）
 - 字幕下载和集成（集成字幕的视频需使用支持字幕的播放器播放，如 `PotPlayer`，`VLC Player` 等）
 
@@ -37,61 +46,121 @@
 > 你只能下载你或你的账号可以在线观看的视频，本项目没有VIP破解功能。
 
 
+## 快速开始
 
+### 安装
 
+#### 依赖程序
 
-## 🔨 快速开始
+本项目基于[Python](https://www.python.org/)、[FFmpeg](https://ffmpeg.org/) 和浏览器扩展 [Violenmonkey](https://violentmonkey.github.io/)/[Tampermonkey](https://www.tampermonkey.net/) 开发：
 
-本项目分为两部分，**violentmonkey** 脚本用于浏览器中提取视频链接，**downloader** 程序用于下载、合并视频。
+- [Python](https://www.python.org/) (3.5 或以上)
+- [FFmpeg](https://ffmpeg.org/) (Windows 系统无需安装，已内置到仓库中)
+- [Violenmonkey](https://violentmonkey.github.io/) /  [Tampermonkey](https://www.tampermonkey.net/) (二选一)
 
-### Violentmonkey
+#### 获取项目
 
-1. 浏览器安装 [Violenmonkey](https://violentmonkey.github.io/) 暴力猴插件或 [Tampermonkey](http://www.tampermonkey.net/) 插件
+直接下载压缩包，或使用 git clone：
 
-- [暴力猴（Chrome）](https://chrome.google.com/webstore/detail/violentmonkey/jinjaccalgkegednnccohejagnlnfdag)
-
-2. 安装 `violentmonkey` 目录中的 [WebVideoDownloader.user.js](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js) 脚本
-
-- [WebVideoDownloader 脚本](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js)
-- [CommonHlsDownloader 脚本](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/CommonHlsDownloader.user.js)（可选。通用 HLS 下载脚本，作用于**所有**使用 HLS 的网站）
-- [广告拦截器](https://chrome.google.com/webstore/detail/adguard-adblocker/bgnkhhnnamicmpeenaelnjfhikgbkllg)（可选。存在广告时，脚本**可能**会延迟到广告即将结束时才开始解析）
-
-3. 访问视频网站并点击某个视频，网页将自动弹出下载按钮，点击打开对话框，然后点击链接远程创建下载任务，或复制链接后手动粘贴到命令行下载
-
-   ![bilibili](img/bilibili.gif)
-
-
-### Downloader
-
-> 本下载程序使用 [FFmpeg](https://ffmpeg.org/) 作为视频处理工具，windows 版本已内置到仓库，linux/mac 下需自行安装。
-
-#### 运行脚本（二选一）
-
-```bash
-# 选项1: 用于点击链接远程调用下载
-python daemon.py
-
-# 选项2: 用于手动复制链接下载
-python common.py
+```
+git clone https://github.com/jaysonlong/webvideo-downloader.git
 ```
 
-#### 可选命令行参数
+#### 安装项目
 
-```bash
-usage: daemon.py / common.py [-h] [-s] [-t:h N] [-t:f N] [-f N] [-d]
+浏览器安装 Violenmonkey/Tampermonkey 脚本。直接点击以下链接即可安装：
+
+- [WebVideoDownloader 脚本](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js)
+
+- [CommonHlsDownloader 脚本](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/CommonHlsDownloader.user.js)（可选。通用 HLS 下载脚本，作用于**所有**使用 HLS 的网站）
+
+安装 python 依赖包：
+
+```
+cd webvideo-downloader/downloader
+pip install -r requirements.txt
+```
+
+（可选）浏览器安装广告拦截器：
+- [AdGuard 广告拦截器](https://adguard.com/)
+
+> 对于某些网站，视频存在广告时，浏览器插件脚本会延迟到广告即将结束时才能提取到视频链接，安装拦截器可不用等待广告播放完毕
+
+### 运行
+
+> 本项目分为两部分，**Violentmonkey** 目录下的 javascript 脚本用于在浏览器中提取视频链接，**Downloader** 目录下的 python 脚本用于下载、合并视频。
+
+首先执行 python 脚本：
+
+```
+python daemon.py
+```
+
+然后访问视频网站并点击某个视频，网页会自动弹出下载按钮，点击按钮即可下载。
+
+示例链接：https://www.bilibili.com/video/BV1c741157Wb
+
+![bilibili](img/bilibili.gif)
+
+下载进度可在 python 脚本的命令窗口查看：
+
+```
+$ python daemon.py
+Listening on port 18888 for clients...
+
+Receive: {
+    "fileName": "看小黄书会被处罚吗",
+    "linksurl": "http://xxx",
+    "type": "link"
+}
+
+Handle: "看小黄书会被处罚吗"
+
+匹配到1段音频，1段视频，开始下载
+-- dispatcher/downloadDash
+正在下载 E:\Workspace\Github\webvideo-downloader\temp\看小黄书会被处罚吗.audio.m4s
+分8段, 并行8线程下载
+进度: [########################################] 100%    0.9/0.9MB  450KB/s 0s
+正在下载 E:\Workspace\Github\webvideo-downloader\temp\看小黄书会被处罚吗.video.m4s
+分8段, 并行8线程下载
+进度: [########################################] 100%  11.2/11.2MB  5.2MB/s 2s
+正在合并视频
+Finish.
+```
+
+python 脚本可选命令行参数：
+
+```
+$ python daemon.py -h
+usage: daemon.py [-h] [-t:h N] [-t:f N] [-f N] [-p PORT] [-s] [-d] [-i]
 
 optional arguments:
   -h, --help  show this help message and exit
-  -s          if set, will save the temp files
   -t:h N      the thread count of hls download, default 8
   -t:f N      the thread count of fragments download, default 8
   -f N        the fragments count of each file, default 0 using the thread count
+  -p PORT     the port that the backend server listens on, default 18888
+  -s          if set, will save the temp files
   -d          debug mode, log more info and save the temp files (ignore -s)
+  -i          interactive mode, get url and file name from the command line
 ```
 
 
 
 ## 更新日志
+
+### [v2.0] - 2020-11-09
+
+#### 新增
+
+- 支持腾讯视频长分段下载（由用户上传的视频）
+- 支持爱奇艺国际站 VIP 下载、WeTV 无字幕下载
+- 增加 debug 模式
+
+#### 变更
+
+- 合并守护模式和交互模式为一个 python 脚本
+- 在爱奇艺国际站（iq.com）中禁用 WebAssembly 扩展，防止字幕加密
 
 ### [v1.6] - 2020-09-12
 
@@ -156,6 +225,7 @@ optional arguments:
 
 - 支持哔哩哔哩、爱奇艺、腾讯视频、芒果TV视频下载（手动复制链接粘贴）
   
+[v2.0]: https://github.com/jaysonlong/webvideo-downloader/compare/v1.6...v2.0
 [v1.6]: https://github.com/jaysonlong/webvideo-downloader/compare/v1.5...v1.6
 [v1.5]: https://github.com/jaysonlong/webvideo-downloader/compare/v1.4...v1.5
 [v1.4]: https://github.com/jaysonlong/webvideo-downloader/compare/v1.3...v1.4

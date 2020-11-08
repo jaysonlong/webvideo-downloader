@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 1.6.6
+// @version 2.0
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
@@ -369,9 +369,11 @@ function wetv_parseVideoInfo(vinfo) {
   if (url.indexOf('.m3u8') == -1) {
     url += ui.hls.pt;
   }
-  var srts = vinfo.sfl.fi.filter(each => each.url);
-  var srtsInfo = srts.map(each => each.name + '|' + each.url);
-  url += '|' + srtsInfo.join('|');
+  if (vinfo.sfl && vinfo.sfl.cnt > 0) {
+    var srts = vinfo.sfl.fi.filter(each => each.url);
+    var srtsInfo = srts.map(each => each.name + '|' + each.url);
+    url += '|' + srtsInfo.join('|');
+  }
   var { vw: width, vh: height, fs: size } = vi;
   size = Math.floor(size / 1024 / 1024);
 
