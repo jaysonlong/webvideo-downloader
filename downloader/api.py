@@ -60,7 +60,7 @@ def parseIqiyiUrl(url, realData, headers = {}):
     data = json.loads(tools.getText(url, headers))
     program = data['data']['program']
     if type(program) == list:
-        print('服务器返回错误，可能原因：愛奇藝台灣站需要使用代理下载(http_proxy/https_proxy)')
+        print('服务器返回错误，可能原因：需要使用命令行代理来下载(http_proxy/https_proxy)')
         exit()
 
     subtitles = []

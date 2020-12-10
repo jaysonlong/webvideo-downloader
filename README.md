@@ -52,11 +52,11 @@
 
 #### 依赖程序
 
-本项目基于[Python](https://www.python.org/)、[FFmpeg](https://ffmpeg.org/) 和浏览器扩展 [Violenmonkey](https://violentmonkey.github.io/)/[Tampermonkey](https://www.tampermonkey.net/) 开发：
+本项目基于[Python](https://www.python.org/)、[FFmpeg](https://ffmpeg.org/) 和浏览器扩展 [Violentmonkey](https://violentmonkey.github.io/)/[Tampermonkey](https://www.tampermonkey.net/) 开发：
 
 - [Python](https://www.python.org/) (3.5 或以上)
 - [FFmpeg](https://ffmpeg.org/) (Windows 系统无需安装，已内置到仓库中)
-- [Violenmonkey](https://violentmonkey.github.io/) /  [Tampermonkey](https://www.tampermonkey.net/) (二选一)
+- [Violentmonkey](https://violentmonkey.github.io/) /  [Tampermonkey](https://www.tampermonkey.net/) (二选一)
 
 #### 获取项目
 
@@ -68,7 +68,7 @@ git clone https://github.com/jaysonlong/webvideo-downloader.git
 
 #### 安装项目
 
-浏览器安装 Violenmonkey/Tampermonkey 脚本。直接点击以下链接即可安装：
+浏览器安装 Violentmonkey/Tampermonkey 脚本。直接点击以下链接即可安装：
 
 - [WebVideoDownloader 脚本](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js)
 
@@ -176,7 +176,6 @@ optional arguments:
 - 支持 WeTV，愛奇藝台灣站视频下载
 - 支持部分网站字幕文件集成到视频中
 - 下载文件完整性检查
-- 暴力猴脚本 font-awesome 图标预加载
 
 #### 变更
 
@@ -207,7 +206,7 @@ optional arguments:
 #### 变更
 
 - 守护模式运行时的监听模式由 HTTP Server 更改为 WebSocket 
-- 哔哩哔哩多P下载的 python 脚本并入到通用的 python 下载脚本中
+- 哔哩哔哩多P下载脚本合并到通用下载脚本中
 
 ### [v1.1] - 2020-05-29
 
