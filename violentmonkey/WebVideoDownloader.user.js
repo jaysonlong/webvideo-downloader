@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 2.0
+// @version 2.1
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
@@ -15,9 +15,12 @@
 // @match *://www.mgtv.com/b/*
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/draggabilly/2.3.0/draggabilly.pkgd.min.js
-// @require https://cdn.bootcdn.net/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js
+// @resource sweetalert2 https://cdn.bootcdn.net/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js
+// @resource fontawesome https://cdn.bootcdn.net/ajax/libs/font-awesome/4.0.0/css/font-awesome.min.css
 // @run-at document-start
 // @grant GM_xmlhttpRequest
+// @grant GM_getResourceText
+// @grant GM_getResourceURL
 // @inject-into page
 // @downloadURL https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js
 // @homepageURL https://github.com/jaysonlong/webvideo-downloader
@@ -737,12 +740,24 @@ function prepare() {
   });
 
   $.ready(() => {
+    var sweetalert2 = GM_getResourceText('sweetalert2');
+    var sweetalert2Url = GM_getResourceURL('sweetalert2');
+    if (sweetalert2) {
+      eval(sweetalert2);
+      window.Swal = this.Sweetalert2;
+    } else {
+      $.create('script', {
+        src: sweetalert2Url,
+        appendToBody: true,
+      });
+    }
+
     $.create('i', { 
       className: 'fa fa-arrow-right fa-times', 
       style: 'visibility:hidden;height:0;width:0;', 
       appendToBody: true,
     });
-    $.addStyle('https://cdn.bootcdn.net/ajax/libs/font-awesome/4.0.0/css/font-awesome.min.css');
+    $.addStyle(GM_getResourceText('fontawesome') || GM_getResourceURL('fontawesome'));
     $.addStyle(`
       .swal2-container {
         font-size: 18px;

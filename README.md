@@ -128,6 +128,8 @@ Handle: "看小黄书会被处罚吗"
 Finish.
 ```
 
+> 下载目录默认为项目根目录下的 videos 文件夹，可在 downloader/config.py 中配置。
+
 python 脚本可选命令行参数：
 
 ```

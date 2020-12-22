@@ -86,10 +86,10 @@ class TaskDispatcher:
         targetFileName = tools.join(self.videoFilePath, fileName + '.mp4')
 
         self.downloader.saveStream(audioName, videoName, **desc)
-        tools.mergeAudio2Video([audioName], [videoName], fileName)
+        tools.mergeAudio2Video([audioName], [videoName], targetFileName)
 
         self.saveTempFile or tools.removeFiles([audioName, videoName])
-        print('Finish.\n')
+        print('Finish %s\n' % targetFileName)
         return targetFileName
 
     # 下载弹幕并集成到视频文件
@@ -135,9 +135,9 @@ class TaskDispatcher:
 
         if subtitles:
             print('匹配到%d个字幕，开始下载' % len(subtitles))
-            self.handleSubtitles(subtitles, fileName, targetFileName, headers)
+            targetFileName = self.handleSubtitles(subtitles, fileName, targetFileName, headers)
 
-        print('Finish.\n')
+        print('Finish: %s\n' % targetFileName)
 
 
     def downloadMultiParts(self, url, baseFileName, pRange):
