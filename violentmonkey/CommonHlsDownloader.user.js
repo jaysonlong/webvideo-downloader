@@ -2,12 +2,11 @@
 // @name 通用hls下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 2.1
+// @version 2.2
 // @match *://*/*
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/draggabilly/2.3.0/draggabilly.pkgd.min.js
 // @resource sweetalert2 https://cdn.bootcdn.net/ajax/libs/limonte-sweetalert2/8.11.8/sweetalert2.all.min.js
-// @resource fontawesome https://cdn.bootcdn.net/ajax/libs/font-awesome/4.0.0/css/font-awesome.min.css
 // @run-at document-start
 // @grant GM_xmlhttpRequest
 // @grant GM_getResourceText
@@ -162,7 +161,7 @@ function prepare() {
       document.addEventListener("DOMContentLoaded", callback);
     },
     addStyle: function(source) {
-      if (source.startsWith('http')) {
+      if (source.startsWith('http') || source.startsWith('blob:')) {
         $.create('link', {
           rel: 'stylesheet',
           href: source,
@@ -224,7 +223,7 @@ function prepare() {
       style: 'visibility:hidden;height:0;width:0;', 
       appendToBody: true,
     });
-    $.addStyle(GM_getResourceText('fontawesome') || GM_getResourceURL('fontawesome'));
+    $.addStyle('https://cdn.bootcdn.net/ajax/libs/font-awesome/4.0.0/css/font-awesome.min.css');
     $.addStyle(`
       .swal2-container {
         font-size: 18px;
