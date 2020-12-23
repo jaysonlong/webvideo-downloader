@@ -134,17 +134,18 @@ python 脚本可选命令行参数：
 
 ```
 $ python daemon.py -h
-usage: daemon.py [-h] [-t:h N] [-t:f N] [-f N] [-p PORT] [-s] [-d] [-i]
+usage: daemon.py [-h] [-t:h N] [-t:f N] [-f N] [-p PORT] [-c] [-s] [-d] [-i]
 
 optional arguments:
-  -h, --help  show this help message and exit
-  -t:h N      the thread count of hls download, default 8
-  -t:f N      the thread count of fragments download, default 8
-  -f N        the fragments count of each file, default 0 using the thread count
-  -p PORT     the port that the backend server listens on, default 18888
-  -s          if set, will save the temp files
-  -d          debug mode, log more info and save the temp files (ignore -s)
-  -i          interactive mode, get url and file name from the command line
+  -h, --help     show this help message and exit
+  -t:h N         the thread count of hls download, default 8
+  -t:f N         the thread count of fragments download, default 8
+  -f N           the fragments count of each file, default 0 using the thread count
+  -p PORT        the port that the backend server listens on, default 18888
+  -c, --correct  correct the timestamp of hls video, merge fragments using binnary mode
+  -s             if set, will save the temp files
+  -d             debug mode, log more info and save the temp files (ignore -s)
+  -i             interactive mode, get url and file name from the command line
 ```
 
 

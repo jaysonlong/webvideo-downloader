@@ -11,6 +11,7 @@
 // @match *://www.iq.com/play/*
 // @match *://v.qq.com/x/cover/*
 // @match *://v.qq.com/x/page/*
+// @match *://v.qq.com/tv/*
 // @match *://wetv.vip/*
 // @match *://www.mgtv.com/b/*
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
@@ -552,7 +553,7 @@ function updateModal({title, content}) {
 }
 
 function buildLink(url, options = {}) {
-  var { data, clz = '', text = '点击下载或复制链接'} = options;
+  var { data, clz = '', text = '点击下载'} = options;
   var attr = data ? `data-data="${data}"` : '';
   return `<a href="${url}" class="remote ${clz}" ${attr}>${text}</a>`;
 }

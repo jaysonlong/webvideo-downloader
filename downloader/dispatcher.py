@@ -14,6 +14,7 @@ class TaskDispatcher:
         self.hlsThreadCnt = config.hlsThreadCnt
         self.fragThreadCnt = config.fragThreadCnt
         self.fragmentCnt = config.fragmentCnt
+        self.correctTimestamp = config.correctTimestamp
         self.tempFilePath = tools.realPath(config.tempFilePath)
         self.videoFilePath = tools.realPath(config.videoFilePath)
 
@@ -28,7 +29,7 @@ class TaskDispatcher:
 
 
     # hls: 下载所有ts分片并合并
-    def _downloadHls(self, urls, fileName, headers = {}, concat = True):
+    def _downloadHls(self, urls, fileName, headers = {}, correct = False):
         print("-- dispatcher/downloadHls")
 
         tempFileBase = tools.join(self.tempFilePath, fileName)
@@ -36,7 +37,7 @@ class TaskDispatcher:
         targetFileName = tools.join(self.videoFilePath, fileName + '.mp4')
 
         self.downloader.downloadAll(urls, fileNames, headers, self.hlsThreadCnt)
-        tools.mergePartialVideos(fileNames, targetFileName, concat=concat)
+        tools.mergePartialVideos(fileNames, targetFileName, correct=correct)
 
         self.saveTempFile or tools.removeFiles(fileNames)
         return targetFileName
@@ -125,9 +126,9 @@ class TaskDispatcher:
 
         targetFileName = ''
         if videoType == 'hls':
-            # 存在字幕文件时，使用二进制合并以生成正确的时间戳
-            concat = not bool(subtitles)
-            targetFileName = self._downloadHls(videoUrls, fileName, headers, concat)
+            # 存在字幕文件时，使用二进制合并以校正时间戳
+            correct = self.correctTimestamp or bool(subtitles)
+            targetFileName = self._downloadHls(videoUrls, fileName, headers, correct)
         elif videoType == 'dash':
             targetFileName = self._downloadDash(audioUrls, videoUrls, fileName, headers)
         elif videoType == 'partial':

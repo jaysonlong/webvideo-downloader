@@ -239,7 +239,8 @@ def getArguments(*options):
 
     for option in options:
         name = option.pop('name')
-        parser.add_argument(name, **option)
+        names = name if isinstance(name, list) else [name]
+        parser.add_argument(*names, **option)
     rs = parser.parse_args(sys.argv[1:])
     return rs
 
@@ -249,11 +250,14 @@ def checkFFmpeg():
             print('\033[93m警告: ffmpeg命令找不到，将影响视频文件合并，' + \
                 '请配置PATH路径，或将其置于当前目录（仅Windows）\033[0m')
 
-def mergePartialVideos(fileNames, fileName, concat = True, subtitlePath = None):
+def mergePartialVideos(fileNames, fileName, correct = False):
     print('正在合并视频')
 
-    # 使用concat demuxer合并，只需编码相同无需格式相同，适应范围更广
-    if concat:
+    if correct:
+        # 快速二进制合并，用于校正hls视频时间戳
+        mergeFiles(fileNames, fileName)
+    else:
+        # 使用concat demuxer合并，只需编码相同无需格式相同，适应范围更广
         concatFile = join(os.path.dirname(fileName), 'concat.txt')
 
         text = "file '" + ("'\nfile '".join(fileNames)) + "'" 
@@ -273,9 +277,6 @@ def mergePartialVideos(fileNames, fileName, concat = True, subtitlePath = None):
             print('\nffmpeg command:', cmd)
         else:
             removeFiles(concatFile)
-    else:
-        # 快速二进制合并，适用部分hls
-        mergeFiles(fileNames, fileName)
 
 
 def mergeAudio2Video(audioNames, videoNames, fileName):

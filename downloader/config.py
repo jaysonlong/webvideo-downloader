@@ -27,6 +27,10 @@ args = tools.getArguments({
     'default': 18888,
     'help': 'the port that the backend server listens on, default 18888',
 }, {
+    'name': ['-c', '--correct'],
+    'action': 'store_true', 
+    'help': 'correct the timestamp of hls video, merge fragments using binnary mode',
+}, {
     'name': '-s',
     'action': 'store_true', 
     'help': 'if set, will save the temp files',
@@ -52,6 +56,9 @@ fragmentCnt = getattr(args, 'f')
 
 # 守护模式下服务器监听的端口
 port = getattr(args, 'p')
+
+# 是否校正hls视频时间戳
+correctTimestamp = getattr(args, 'correct')
 
 # 调试模式
 debug = getattr(args, 'd')
