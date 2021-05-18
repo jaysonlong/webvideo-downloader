@@ -2,7 +2,7 @@
 // @name 通用hls下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 2.2.1
+// @version 2.2.2
 // @match *://*/*
 // @require https://unpkg.com/ajax-hook@2.0.0/dist/ajaxhook.min.js
 // @require https://cdn.bootcdn.net/ajax/libs/draggabilly/2.3.0/draggabilly.pkgd.min.js
@@ -136,6 +136,7 @@ function httpCall(payload) {
 // ajax拦截
 function ajaxHook() {
   ah.hook(...arguments);
+  Object.assign(XMLHttpRequest, { UNSENT: 0, OPENED: 1, HEADERS_RECEIVED: 2, LOADING: 3, DONE: 4 });
   unsafeWindow.XMLHttpRequest = XMLHttpRequest;
 }
 

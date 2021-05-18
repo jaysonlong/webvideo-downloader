@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 2.2
+// @version 2.2.1
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
@@ -565,6 +565,7 @@ function buildLink(url, options = {}) {
 // ajax拦截
 function ajaxHook() {
   ah.hook(...arguments);
+  Object.assign(XMLHttpRequest, { UNSENT: 0, OPENED: 1, HEADERS_RECEIVED: 2, LOADING: 3, DONE: 4 });
   unsafeWindow.XMLHttpRequest = XMLHttpRequest;
 }
 
