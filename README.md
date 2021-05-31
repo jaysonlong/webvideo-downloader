@@ -24,20 +24,19 @@
 | 腾讯视频         | [https://v.qq.com/](https://v.qq.com/)                          | ✓        | ✓       |
 | 芒果TV       | [https://www.mgtv.com/](https://www.mgtv.com/)                        | ✓        | ✓       |
 | WeTV             | [https://wetv.vip/](https://wetv.vip/)                              | ✓        | ✓ |
-| 愛奇藝台灣站 | [https://tw.iqiyi.com/](https://tw.iqiyi.com/)                  | ✓        | ✓       |
 | 爱奇艺国际站   | [https://www.iq.com/](https://www.iq.com/)                    | ✓        | ✓       |
 
 此外，可选的 [CommonHlsDownloader](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/CommonHlsDownloader.user.js) 脚本支持绝大部分基于 HLS 流式视频的网站，如 [LPL官网](https://lpl.qq.com/) 等。
 
 ## 功能特性
 
-### 下载特性
+#### *下载特性*
 
 - 跨平台支持（Windows/Linux/Mac）
 - 多线程下载（单文件分段/多文件并行）
 - 字幕下载和集成（集成字幕的视频需使用支持字幕的播放器播放，如 `PotPlayer`，`VLC Player` 等）
 
-### 关于VIP
+#### *关于 VIP*
 
 本项目支持**1080p蓝光画质、VIP专享、VIP点播、付费视频**的下载，前提是你是VIP/用了券/付了费。
 
@@ -50,7 +49,7 @@
 
 ### 安装
 
-#### 依赖程序
+##### *依赖程序*
 
 本项目基于[Python](https://www.python.org/)、[FFmpeg](https://ffmpeg.org/) 和浏览器扩展 [Violentmonkey](https://violentmonkey.github.io/)/[Tampermonkey](https://www.tampermonkey.net/) 开发：
 
@@ -58,7 +57,7 @@
 - [FFmpeg](https://ffmpeg.org/) (Windows 系统无需安装，已内置到仓库中)
 - [Violentmonkey](https://violentmonkey.github.io/) /  [Tampermonkey](https://www.tampermonkey.net/) (二选一)
 
-#### 获取项目
+##### *获取项目*
 
 直接下载压缩包，或使用 git clone：
 
@@ -66,9 +65,9 @@
 git clone https://github.com/jaysonlong/webvideo-downloader.git
 ```
 
-#### 安装项目
+##### *安装项目*
 
-浏览器安装 Violentmonkey/Tampermonkey 脚本。直接点击以下链接即可安装：
+浏览器安装以下基于 Violentmonkey/Tampermonkey 的脚本。直接点击以下链接即可安装：
 
 - [WebVideoDownloader 脚本](https://github.com/jaysonlong/webvideo-downloader/raw/master/violentmonkey/WebVideoDownloader.user.js)
 
