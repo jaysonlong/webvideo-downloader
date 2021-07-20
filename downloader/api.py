@@ -57,17 +57,21 @@ def parseIqiyiInfoUrls(urls, headers = {}):
     return videoUrls
 
 def parseIqiyiUrl(url, realData, headers = {}):
-    data = json.loads(tools.getText(url, headers))
+    if realData.startswith('{'):
+        data = json.loads(realData)
+    else:
+        data = json.loads(tools.getText(url, headers))
+
     program = data['data']['program']
     if type(program) == list:
         print('服务器返回错误，可能原因：需要使用命令行代理来下载(http_proxy/https_proxy)')
         exit()
 
     subtitles = []
+    
     filterVideos = list(filter(lambda each: each.get('m3u8'), program['video']))
-
     if len(filterVideos):
-        content = realData or filterVideos[0]['m3u8']
+        content = filterVideos[0]['m3u8']
 
         if content.startswith('#EXTM3U'):
             videoType = 'hls'

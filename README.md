@@ -47,9 +47,9 @@
 
 ## 快速开始
 
-### 安装
+### *安装*
 
-##### *依赖程序*
+##### 依赖程序
 
 本项目基于[Python](https://www.python.org/)、[FFmpeg](https://ffmpeg.org/) 和浏览器扩展 [Violentmonkey](https://violentmonkey.github.io/)/[Tampermonkey](https://www.tampermonkey.net/) 开发：
 
@@ -57,7 +57,7 @@
 - [FFmpeg](https://ffmpeg.org/) (Windows 系统无需安装，已内置到仓库中)
 - [Violentmonkey](https://violentmonkey.github.io/) /  [Tampermonkey](https://www.tampermonkey.net/) (二选一)
 
-##### *获取项目*
+##### 获取项目
 
 直接下载压缩包，或使用 git clone：
 
@@ -65,7 +65,7 @@
 git clone https://github.com/jaysonlong/webvideo-downloader.git
 ```
 
-##### *安装项目*
+##### 安装项目
 
 浏览器安装以下基于 Violentmonkey/Tampermonkey 的脚本。直接点击以下链接即可安装：
 
@@ -85,7 +85,7 @@ pip install -r requirements.txt
 
 > 对于某些网站，视频存在广告时，浏览器插件脚本会延迟到广告即将结束时才能提取到视频链接，安装拦截器可不用等待广告播放完毕
 
-### 运行
+### *运行*
 
 > 本项目分为两部分，**Violentmonkey** 目录下的 javascript 脚本用于在浏览器中提取视频链接，**Downloader** 目录下的 python 脚本用于下载、合并视频。
 

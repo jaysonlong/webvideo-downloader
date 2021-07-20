@@ -94,11 +94,12 @@ class Runner:
 
     # 守护模式，监听web请求
     def startDaemon(self, port):
+        # 消费者
         t = threading.Thread(target=self._downloadThread, daemon=True)
         t.start()
 
+        # 生产者
         server = DownloadServer(port)
-
         while True:
             try:
                 print("Listening on port %d for clients..." % port)

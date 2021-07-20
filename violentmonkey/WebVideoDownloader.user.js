@@ -2,7 +2,7 @@
 // @name 网站视频下载器
 // @namespace https://github.com/jaysonlong
 // @author Jayson Long https://github.com/jaysonlong
-// @version 2.2.1
+// @version 2.2.2
 // @match *://www.bilibili.com/*/play/*
 // @match *://www.bilibili.com/video/*
 // @match *://www.bilibili.com/s/video/*
@@ -81,6 +81,9 @@ var handler = {
           }).then(resp => resp.json()).then(iqiyi_parseResult);
         }
       }
+    });
+    jsonpHook('dash?', iqiyi_parseResult, {
+      onMatch: url => storage.playinfoUrl = url,
     });
   },
 
@@ -239,7 +242,7 @@ function iqiyi_parseResult(rs) {
     var size = Math.floor(size / 1024 / 1024);
     var options = {};
     if (storage.currDomain == 'iq.com') {
-      options = { data: videos[0].m3u8, text: '点击下载' };
+      options = { data: JSON.stringify(rs), text: '点击下载' };
     }
     var html = `${fileformat}  ${wh}  ${size}M  ${buildLink(storage.playinfoUrl, options)}`;
 
@@ -431,7 +434,7 @@ function mgtv_parseVideoInfo(rs) {
 
 // 准备下载信息
 function prepareDownload(ele) {
-  var [url, data] = [ele.href, ele.dataset.data];
+  var [url, data] = [ele.href, unescape(ele.dataset.data)];
   var queue = [{title:'输入文件名', inputValue: storage.modalInfo.title}];
   ele.classList.contains('multi') && queue.push('输入首、尾P(空格分隔)或单P');
   Swal.mixin({
@@ -554,7 +557,7 @@ function updateModal({title, content}) {
 
 function buildLink(url, options = {}) {
   var { data, clz = '', text = '点击下载'} = options;
-  var attr = data ? `data-data="${data}"` : '';
+  var attr = data ? `data-data="${escape(data)}"` : '';
   return `<a href="${url}" class="remote ${clz}" ${attr}>${text}</a>`;
 }
 
