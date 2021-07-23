@@ -215,7 +215,7 @@ def filterHlsUrls(content, url = None):
     return urls
 
 def tryFixSrtFile(srtFile):
-    with open(srtFile, 'r+', encoding="utf-8") as f:
+    with open(srtFile, 'r+', encoding='utf-8', errors='ignore') as f:
         content = f.read()
 
         if not re.search(r'\r?\n\r?\n.+-->', content):
