@@ -114,6 +114,16 @@ var handler = {
           tencent_parseResult(xhr.responseText);
         }
       },
+      onload: function(xhr) {
+        if (xhr.body && xhr.readyState == 4) {
+          Object.assign(storage, {
+            playinfoUrl: xhr.url,
+            playinfoMethod: xhr.method,
+            playinfoBody: xhr.body,
+          });
+          tencent_parseResult(xhr.responseText);
+        }
+      },
     });
   },
 
@@ -125,6 +135,15 @@ var handler = {
 
   'mgtv.com': function() {
     jsonpHook('getSource?', mgtv_parseResult);
+    ajaxHook({
+      open: function([_, url], xhr) {
+        if (url.indexOf('getSource?') > 0) {
+          fetch(url, {
+            credentials: 'include'
+          }).then(resp => resp.json()).then(mgtv_parseResult);
+        }
+      }
+    });
   },
 }
 
