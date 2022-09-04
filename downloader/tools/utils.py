@@ -6,7 +6,7 @@ import argparse
 import re
 import shutil
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, urljoin
 import xml.etree.ElementTree as ET
 import logging
 import requests
@@ -140,9 +140,6 @@ def normalResponse(handler, resp, contentType = 'text/html'):
         resp = resp.encode('utf-8')
     handler.wfile.write(resp)
 
-def getBasePath(url):
-    return url.split('?', 1)[0].rsplit('/', 1)[0] + '/'
-
 def getFileName(url):
     return url.split('?', 1)[0].rsplit('/', 1)[-1]
 
@@ -205,14 +202,12 @@ def formatTime(value):
         return '%ds' % value
     else:
         return '%2dmin%02ds' % (value // 60, value % 60)
- 
+
 def filterHlsUrls(content, url = None):
     urls = re.findall(r'[^#"\s]+\.(?:ts|mp4)[^"\s]*', content, re.MULTILINE)
-
-    if len(urls) > 0 and not urls[0].startswith('http'):
-        basePath = getBasePath(url)
-        urls = list(map(lambda url: basePath + url, urls))
+    urls = [urljoin(url, u) for u in urls]
     return urls
+
 
 def tryFixSrtFile(srtFile):
     with open(srtFile, 'r+', encoding='utf-8', errors='ignore') as f:
