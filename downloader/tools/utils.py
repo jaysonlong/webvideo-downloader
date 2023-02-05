@@ -215,6 +215,33 @@ def filterHlsUrls(content, url = None):
     return urls
 
 def tryFixSrtFile(srtFile):
+    convertVttToSrt(srtFile)
+    fillSrtNumber(srtFile)
+
+def convertVttToSrt(srtFile):
+    if not srtFile.endswith('.vtt'):
+        return
+
+    with open(srtFile, 'r+', encoding='utf-8', errors='ignore') as f:
+        content = f.read()
+        if re.search(r'STYLE\r?\n[^}]+}\r?\n\r?\n', content):
+            no_style_content = re.sub(r'STYLE\r?\n[^}]+}\r?\n\r?\n', '', content)
+            f.seek(0)
+            f.truncate()
+            f.write(no_style_content)
+
+    logLevel = 'info' if debug else 'fatal'
+    realSrtFile = srtFile.rsplit('.', 1)[0] + '.srt'
+    cmd = ('ffmpeg -i "%s" -v %s "%s"') % (srtFile, logLevel, realSrtFile)
+    os.system(cmd)
+
+    if debug:
+        os.rename(srtFile, srtFile + '.tmp')
+    else:
+        removeFiles(srtFile)
+    os.rename(realSrtFile, srtFile)
+
+def fillSrtNumber(srtFile):
     with open(srtFile, 'r+', encoding='utf-8', errors='ignore') as f:
         content = f.read()
 

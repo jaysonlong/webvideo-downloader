@@ -396,7 +396,14 @@ function wetv_parseVideoInfo(vinfo) {
   }
   if (vinfo.sfl && vinfo.sfl.cnt > 0) {
     var srts = vinfo.sfl.fi.filter(each => each.url);
-    var srtsInfo = srts.map(each => each.name + '|' + each.url);
+    var srtsInfo = srts.map(each => {
+      var srtName = each.name;
+      var srtUrl = each.url;
+      if (srtUrl.includes(".vtt.m3u8")) {
+        srtUrl = srtUrl.replace(".vtt.m3u8", ".vtt");
+      }
+      return srtName + '|' + srtUrl;
+    });
     url += '|' + srtsInfo.join('|');
   }
   var { vw: width, vh: height, fs: size } = vi;
