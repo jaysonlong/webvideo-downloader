@@ -57,7 +57,7 @@ def parseIqiyiInfoUrls(urls, headers = {}):
     return videoUrls
 
 def parseIqiyiUrl(url, realData, headers = {}):
-    if realData.startswith('{'):
+    if realData is not None and realData.startswith('{'):
         data = json.loads(realData)
     else:
         data = json.loads(tools.getText(url, headers))
