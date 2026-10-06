@@ -207,7 +207,7 @@ def formatTime(value):
         return '%2dmin%02ds' % (value // 60, value % 60)
  
 def filterHlsUrls(content, url = None):
-    urls = re.findall(r'[^#"\s]+\.(?:ts|mp4)[^"\s]*', content, re.MULTILINE)
+    urls = re.findall(r'[^#"\s]+\.(?:ts|265ts|mp4)[^"\s]*', content, re.MULTILINE)
 
     if len(urls) > 0 and not urls[0].startswith('http'):
         basePath = getBasePath(url)
